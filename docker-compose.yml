@@ -1,0 +1,9 @@
+include:
+  - db/db.yml
+
+volumes:
+  data:
+
+networks:
+  app-network:
+    driver: bridge
