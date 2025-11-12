@@ -1,0 +1,81 @@
+[project]
+name = "copilot-llm-service"
+version = "0.1.0"
+description = "LLM микросервис для обработки запросов с поддержкой файлов"
+authors = [
+    {name = "Аслан Алибеков",email = "aslan.alibekov.2017@mail.ru"}
+]
+readme = "README.md"
+packages = [{include = "app"}]
+requires-python = ">=3.13"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "alembic/versions",
+]
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "N",
+    "UP",
+    "B",
+    "C4",
+    "S",
+    "BLE",
+    "T20",
+    "PT",
+    "RUF",
+    "ERA",
+    "PL",
+    "PERF",
+]
+fixable = ["ALL"]
+unfixable = []
+ignore = ["E203", "ERA001"]
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-positional-args = 8
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+force-single-line = false
+lines-after-imports = 2
+known-first-party = ["app"]
+
+[tool.ruff.lint.pep8-naming]
+classmethod-decorators = ["classmethod"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["app"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_optional = true
+show_error_codes = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
