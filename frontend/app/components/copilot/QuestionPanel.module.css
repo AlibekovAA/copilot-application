@@ -1,0 +1,35 @@
+.submitButton {
+  background: linear-gradient(to right, #9933ff, #ef3124, #ff6b35);
+  color: white;
+  border: none;
+  transition: all 0.3s;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: linear-gradient(to right, #8822ee, #de2013, #ee5a25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(153, 51, 255, 0.4);
+}
+
+.submitButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(to right, #9933ff, #ef3124, #ff6b35);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  height: auto;
+}
+
+:global(.theme-light) .submitButton {
+  background: linear-gradient(to right, #ef3124, #ff6b35);
+}
+
+:global(.theme-light) .submitButton:hover:not(:disabled) {
+  background: linear-gradient(to right, #de2013, #ee5a25);
+  box-shadow: 0 4px 12px -2px rgba(239, 49, 36, 0.4);
+}
+
+:global(.theme-light) .submitButton:disabled {
+  background: linear-gradient(to right, #ef3124, #ff6b35);
+}
+
