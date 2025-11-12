@@ -1,0 +1,82 @@
+.topicButton {
+  position: relative;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border: none;
+  color: var(--app-text-primary);
+  background: transparent;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  transform: scale(1);
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+  outline: none;
+  overflow: hidden;
+}
+
+.topicButton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid rgba(153, 51, 255, 0.9);
+  transition: border-color 0.3s ease, opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.topicButton:hover:not(:disabled):not(.active) {
+  background: rgba(153, 51, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.topicButton:hover::before {
+  border-color: rgba(153, 51, 255, 1);
+}
+
+.topicButton.active {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  color: white;
+  box-shadow: 0 4px 12px -2px rgba(153, 51, 255, 0.4);
+}
+
+.topicButton.active::before {
+  opacity: 0;
+}
+
+.topicButton.active:hover {
+  background: linear-gradient(to right, #8822ee, #de2013);
+  transform: scale(1.05);
+}
+
+.topicButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+:global(.theme-light) .topicButton {
+  color: var(--app-text-primary);
+}
+
+:global(.theme-light) .topicButton::before {
+  border-color: rgba(239, 49, 36, 0.4);
+}
+
+:global(.theme-light) .topicButton:hover:not(:disabled):not(.active) {
+  background: rgba(239, 49, 36, 0.15);
+}
+
+:global(.theme-light) .topicButton.active {
+  background: linear-gradient(to right, #ef3124, #fb7185);
+}
+
+:global(.theme-light) .topicButton.active:hover {
+  background: linear-gradient(to right, #de2013, #f43f5e);
+}
+
