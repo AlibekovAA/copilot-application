@@ -14,7 +14,7 @@
 .backgroundGradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom right, #9933ff, #ef3124, #a8ff00);
+  background: linear-gradient(to bottom right, #9933ff, #ef3124, #888888);
   opacity: 0.9;
 }
 
@@ -37,7 +37,7 @@
   height: 28rem;
   top: -5rem;
   left: -5rem;
-  background: #a8ff00;
+  background: #888888;
   animation-delay: 0s;
 }
 
@@ -75,7 +75,7 @@
   top: 50%;
   left: -5rem;
   transform: translateY(-50%);
-  background: #a8ff00;
+  background: #ffffff;
   animation-delay: 3s;
 }
 
@@ -102,7 +102,7 @@
   height: 14rem;
   bottom: 20%;
   left: 15%;
-  background: #a8ff00;
+  background: #ffffff;
   animation-delay: 3.5s;
 }
 
@@ -119,7 +119,7 @@
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 28rem;
+  max-width: 50rem;
 }
 
 @keyframes blob {

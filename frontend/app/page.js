@@ -14,14 +14,6 @@ import { Plus } from 'lucide-react';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
 
-const SUGGESTIONS = [
-  'Какие ключевые метрики для измерения успеха бизнеса?',
-  'Как создать конкурентный анализ?',
-  'Что такое микросервисная архитектура?',
-  'Как масштабировать веб-приложение?',
-  'Как построить бренд-идентичность?',
-  'Как улучшить операционную эффективность?',
-];
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -350,7 +342,6 @@ export default function Home() {
                 <QuestionPanel
                   onSubmit={handleSubmitQuestion}
                   isLoading={isLoadingAnswer}
-                  suggestions={SUGGESTIONS}
                 />
               </div>
             </div>
