@@ -1,9 +1,8 @@
 from fastapi import FastAPI
 
-from app.api.router import api_router
-from app.core.config import get_settings
+from app.api import api_router
+from app.core import get_settings
 from app.core.events import lifespan
-
 
 settings = get_settings()
 

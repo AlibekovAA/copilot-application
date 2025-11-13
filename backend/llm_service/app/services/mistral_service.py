@@ -3,9 +3,9 @@ from typing import Any
 import httpx
 from fastapi import status
 
-from app.core.config import get_settings
+from app.core import get_settings
 from app.prompts import get_system_prompt
-from app.utils.logger import logger
+from app.utils import log
 
 
 class MistralService:
@@ -17,7 +17,7 @@ class MistralService:
         self.timeout = self.settings.MISTRAL_TIMEOUT
 
         if not self.api_key:
-            logger.warning("MISTRAL_API_KEY not configured. Please set it in .env file.")
+            log.warning("MISTRAL_API_KEY not configured. Please set it in .env file.")
 
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -42,7 +42,7 @@ class MistralService:
         try:
             system_prompt = get_system_prompt(domain)
 
-            logger.info(
+            log.info(
                 f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)}"
             )
 
@@ -64,27 +64,27 @@ class MistralService:
             choices = data.get("choices", [])
 
             if not choices:
-                logger.warning("Empty choices in Mistral API response")
-                return "Sorry, unable to generate response."
+                log.warning("Empty choices in Mistral API response")
+                return "Извините, не удалось сгенерировать ответ."
 
             generated_text: str = str(choices[0].get("message", {}).get("content", ""))
 
             if not generated_text:
-                logger.warning("Empty content in Mistral API response")
-                return "Sorry, unable to generate response."
+                log.warning("Empty content in Mistral API response")
+                return "Извините, не удалось сгенерировать ответ."
 
-            logger.info(f"Successfully generated response, length: {len(generated_text)}")
-            logger.debug(f"Mistral response: {generated_text[:200]}...")
+            log.info(f"Successfully generated response, length: {len(generated_text)}")
+            log.debug(f"Mistral response: {generated_text[:200]}...")
 
             return generated_text.strip()
 
         except httpx.TimeoutException as e:
-            logger.error(f"Mistral API request timeout: {e}")
+            log.error(f"Mistral API request timeout: {e}")
             raise ValueError("Timeout waiting for response from Mistral AI") from e
         except httpx.HTTPStatusError as e:
             error_text = e.response.text
             status_code = e.response.status_code
-            logger.error(f"Mistral API HTTP error: {status_code} - {error_text}")
+            log.error(f"Mistral API HTTP error: {status_code} - {error_text}")
 
             if status_code == status.HTTP_401_UNAUTHORIZED:
                 raise ValueError("Invalid API key Mistral AI") from e
@@ -95,12 +95,12 @@ class MistralService:
 
             raise ValueError(f"Error when contacting Mistral AI: {status_code}") from e
         except Exception as e:
-            logger.error(f"Unexpected error in Mistral service: {e}")
+            log.error(f"Unexpected error in Mistral service: {e}")
             raise ValueError(f"Unexpected error in Mistral service: {e!s}") from e
 
     async def health_check(self) -> bool:
         if not self.api_key:
-            logger.warning("Cannot perform health check: MISTRAL_API_KEY not set")
+            log.warning("Cannot perform health check: MISTRAL_API_KEY not set")
             return False
 
         try:
@@ -116,10 +116,10 @@ class MistralService:
                 timeout=5.0,
             )
             response.raise_for_status()
-            logger.info("Mistral AI health check passed")
+            log.info("Mistral AI health check passed")
             return True
         except (httpx.HTTPError, ValueError) as e:
-            logger.warning(f"Mistral AI health check failed: {e}")
+            log.warning(f"Mistral AI health check failed: {e}")
             return False
 
     async def __aenter__(self) -> "MistralService":
