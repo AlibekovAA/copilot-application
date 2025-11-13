@@ -1,4 +1,4 @@
-.PHONY: install format lint type-check run-api run-consumer
+.PHONY: install format lint type-check run
 
 install:
 	poetry install
@@ -12,11 +12,8 @@ lint:
 type-check:
 	poetry run mypy app/
 
-run-api:
+run:
 	poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-run-consumer:
-	poetry run python app/consumer.py
 
 docker-build:
 	docker build -t copilot-llm-service .
@@ -27,4 +24,4 @@ docker-up:
 docker-down:
 	docker-compose -f python.yml down
 
-all: format lint type-check
+check: format lint type-check

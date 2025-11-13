@@ -1,5 +1,6 @@
 include:
   - db/db.yml
+  - backend/python/python.yml
 
 volumes:
   data:
