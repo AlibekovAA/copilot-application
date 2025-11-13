@@ -2,7 +2,7 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y make gcc libc6-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y make gcc libc6-dev curl && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml poetry.lock* /app/
 
