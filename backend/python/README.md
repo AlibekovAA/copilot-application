@@ -1,64 +1,9 @@
-backend/python/
-├── pyproject.toml
-├── README.md
-├── Dockerfile
-├── python.yml
-│
-└── app/
-├── **init**.py
-├── main.py
-├── consumer.py
-│
-├── core/
-│ ├── **init**.py
-│ ├── config.py
-│ ├── database.py
-│ └── events.py
-│
-├── api/
-│ ├── **init**.py
-│ ├── router.py
-│ └── endpoints/
-│ ├── **init**.py
-│ ├── chat.py
-│ └── health.py
-│
-├── schemas/
-│ ├── **init**.py
-│ ├── chat.py
-│ └── task.py
-│
-├── models/
-│ ├── **init**.py
-│ ├── base.py
-│ └── task.py
-│
-├── services/
-│ ├── **init**.py
-│ ├── qwen_service.py
-│ ├── minio_service.py
-│ └── task_service.py
-│
-├── consumers/
-│ ├── **init**.py
-│ └── task_consumer.py
-│
-├── middleware/
-│ ├── **init**.py
-│ └── cors.py
-│
-└── utils/
-├── **init**.py
-├── exceptions.py
-└── logger.py
-
 | Путь                           | Описание                  |
 | ------------------------------ | ------------------------- |
 | pyproject.toml                 | Poetry конфигурация       |
 | Dockerfile                     | Docker образ              |
 | python.yml                     | Docker Compose            |
 | app/main.py                    | Точка входа FastAPI       |
-| app/consumer.py                | RabbitMQ consumer         |
 | app/core/config.py             | Pydantic Settings         |
 | app/core/database.py           | SQLAlchemy async          |
 | app/core/events.py             | Lifecycle hooks           |
@@ -74,53 +19,56 @@ backend/python/
 | app/services/task_service.py   | CRUD задач                |
 | app/consumers/task_consumer.py | Consumer с aio-pika       |
 | app/middleware/cors.py         | CORS настройки            |
-| app/utils/exceptions.py        | Кастомные исключения      |
 | app/utils/logger.py            | Structlog логирование     |
 
-# Установить все зависимости
+## Установка и настройка
 
-poetry install
+### Установить зависимости
 
-# Только production зависимости (без dev)
+```
+make install
+```
 
-poetry install --only main
+### Добавить зависимость
 
-# Добавить новую зависимость
-
+```
 poetry add requests
+```
 
-# Добавить dev зависимость
+### Добавить dev зависимость
 
-poetry add --group dev black
+```
+poetry add --group dev pytest
+```
 
-# Обновить зависимости
+### Обновить зависимости
 
+```
 poetry update
+```
 
-# Проверить код
+## Разработка
 
-poetry run ruff check app/
+### Запустить все проверки (форматирование, линтинг, типы)
 
-# Автоматически исправить
+```
+make check
+```
 
-poetry run ruff check app/ --fix
+### Форматирование кода
 
-# Форматирование
+```
+make format
+```
 
-poetry run ruff format app/
+### Линтинг с автоисправлением
 
-# Проверить только определенные правила
+```
+make lint
+```
 
-poetry run ruff check app/ --select=E,F,I
+### Проверка типов
 
-# Проверка типов
-
-poetry run mypy app/
-
-# Более строгая проверка
-
-poetry run mypy app/ --strict
-
-# Игнорировать определенные файлы
-
-poetry run mypy app/ --exclude 'alembic/'
+```
+make type-check
+```

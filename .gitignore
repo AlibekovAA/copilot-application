@@ -1,1 +1,5 @@
 .env
+backend/python/.mypy_cache
+backend/python/.ruff_cache
+backend/python/logs
+backend/python/app/**/__pycache__/
