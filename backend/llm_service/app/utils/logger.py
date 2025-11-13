@@ -6,7 +6,7 @@ from pathlib import Path
 from queue import Queue
 from typing import Any, Self
 
-from app.core.config import get_settings
+from app.core import get_settings
 
 
 class Logger:
@@ -94,9 +94,9 @@ class Logger:
         self._queue_listener.stop()
 
 
-logger = Logger()
-debug = logger.debug
-info = logger.info
-warning = logger.warning
-error = logger.error
-critical = logger.critical
+log = Logger()
+debug = log.debug
+info = log.info
+warning = log.warning
+error = log.error
+critical = log.critical

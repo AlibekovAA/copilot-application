@@ -1,15 +1,22 @@
-import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.utils.logger import logger
+from app.services import MistralService
+from app.utils import log
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("Application startup")
-    await asyncio.sleep(0)
+    log.info("Application startup")
+
+    mistral_service = MistralService()
+    app.state.mistral_service = mistral_service
+    log.info("Mistral service initialized")
+
     yield
-    logger.info("Application shutdown")
+
+    log.info("Application shutdown - closing services")
+    await mistral_service.close()
+    log.info("Mistral service closed")
