@@ -6,7 +6,7 @@ import { Send } from './icons';
 import { TopicButtons } from './TopicButtons';
 import styles from './QuestionPanel.module.css';
 
-export function QuestionPanel({ onSubmit, isLoading, suggestions }) {
+export function QuestionPanel({ onSubmit, isLoading }) {
   const [question, setQuestion] = useState('');
   const [currentTopic, setCurrentTopic] = useState(null);
   const isUpdatingTopicRef = useRef(false);
