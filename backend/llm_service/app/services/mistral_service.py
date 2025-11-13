@@ -65,13 +65,13 @@ class MistralService:
 
             if not choices:
                 log.warning("Empty choices in Mistral API response")
-                return "Извините, не удалось сгенерировать ответ."
+                return "Sorry, unable to generate response."
 
             generated_text: str = str(choices[0].get("message", {}).get("content", ""))
 
             if not generated_text:
                 log.warning("Empty content in Mistral API response")
-                return "Извините, не удалось сгенерировать ответ."
+                return "Sorry, unable to generate response."
 
             log.info(f"Successfully generated response, length: {len(generated_text)}")
             log.debug(f"Mistral response: {generated_text[:200]}...")
