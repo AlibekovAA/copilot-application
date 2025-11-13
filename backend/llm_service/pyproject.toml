@@ -1,17 +1,14 @@
-[project]
+[tool.poetry]
 name = "copilot-llm-service"
 version = "0.1.0"
 description = "LLM микросервис для обработки запросов с поддержкой файлов"
-authors = [
-    {name = "Аслан Алибеков",email = "aslan.alibekov.2017@mail.ru"}
-]
+authors = ["Аслан Алибеков <aslan.alibekov.2017@mail.ru>"]
 readme = "README.md"
 packages = [{include = "app"}]
-requires-python = ">=3.13"
 
 [tool.ruff]
 target-version = "py313"
-line-length = 100
+line-length = 120
 exclude = [
     ".git",
     ".venv",
@@ -44,7 +41,7 @@ select = [
 ]
 fixable = ["ALL"]
 unfixable = []
-ignore = ["E203", "ERA001"]
+ignore = ["E203", "ERA001", "RUF001"]
 
 [tool.ruff.lint.pylint]
 max-args = 8
@@ -77,9 +74,12 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [tool.poetry.dependencies]
+python = "^3.13"
 fastapi = "^0.121.1"
 uvicorn = {extras = ["standard"], version = "^0.38.0"}
 pydantic-settings = "^2.12.0"
+httpx = "^0.28.1"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
