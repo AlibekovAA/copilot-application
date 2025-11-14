@@ -4,12 +4,15 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y make gcc libc6-dev curl && rm -rf /var/lib/apt/lists/*
 
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install poetry
+
 COPY pyproject.toml poetry.lock* /app/
 
-RUN pip install --upgrade pip && \
-    pip install poetry && \
+RUN --mount=type=cache,target=/root/.cache/pypoetry \
     poetry config virtualenvs.create false && \
-    poetry install --no-root --no-interaction --no-ansi
+    poetry install --no-root --no-interaction --no-ansi --only main
 
 COPY . /app
 

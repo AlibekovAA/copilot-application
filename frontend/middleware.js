@@ -5,12 +5,14 @@ const validRoutes = ['/', '/auth'];
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
-  
+
   // Разрешаем доступ к auth странице и статическим файлам
-  if (pathname.startsWith('/auth') || 
-      pathname.startsWith('/_next') || 
-      pathname.startsWith('/api') ||
-      pathname.includes('.')) {
+  if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
     return NextResponse.next();
   }
 
@@ -38,4 +40,3 @@ export function middleware(request) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|icon.svg).*)'],
 };
-

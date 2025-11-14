@@ -17,20 +17,31 @@ async def chat_endpoint(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
+    user_id = request_body.user_id
     conversation_id = request_body.conversation_id
     domain = request_body.domain or "general"
     user_message = request_body.message
 
     log.info(
-        f"Chat request received - conversation_id: {conversation_id}, domain: {domain}, "
+        f"Chat request received - user_id: {user_id}, conversation_id: {conversation_id}, domain: {domain}, "
         f"message length: {len(user_message)} characters"
     )
 
     try:
         message_repo = MessageRepository(db)
 
-        is_first_message = await message_repo.check_if_first_message(conversation_id)
-        log.info(f"Is first message in conversation {conversation_id}: {is_first_message}")
+        conversation = await message_repo.get_conversation_by_id(conversation_id, user_id=user_id)
+        if conversation is None:
+            log.error(f"Conversation {conversation_id} not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {conversation_id} not found. Please create it first.",
+            )
+
+        actual_conversation_id = conversation.conversation_id
+
+        is_first_message = await message_repo.check_if_first_message(actual_conversation_id)
+        log.info(f"Is first message in conversation {actual_conversation_id}: {is_first_message}")
 
         enriched_prompt = None
         if is_first_message:
@@ -38,13 +49,13 @@ async def chat_endpoint(
             enriched_prompt = f"{system_prompt}\n\n{user_message}"
             log.info(f"First message detected - enriched with system prompt for domain: {domain}")
 
-        history = await message_repo.get_last_messages(conversation_id, limit=5)
+        history = await message_repo.get_last_messages(actual_conversation_id, limit=5)
         log.info(f"Loaded {len(history)} history messages for context")
 
         history_messages = [{"role": msg.role, "content": msg.content} for msg in history]
 
         user_msg_record = await message_repo.save_message(
-            conversation_id=conversation_id,
+            conversation_id=actual_conversation_id,
             role="user",
             content=user_message,
             enriched_prompt=enriched_prompt,
@@ -62,7 +73,7 @@ async def chat_endpoint(
         log.debug(f"Generated response preview: {response_text[:200]}...")
 
         assistant_msg_record = await message_repo.save_message(
-            conversation_id=conversation_id,
+            conversation_id=actual_conversation_id,
             role="assistant",
             content=response_text,
         )
@@ -71,6 +82,7 @@ async def chat_endpoint(
         return ChatResponse(
             response=response_text,
             message_id=assistant_msg_record.message_id,
+            conversation_id=actual_conversation_id,
             status="success",
         )
 
