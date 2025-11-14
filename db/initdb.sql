@@ -4,6 +4,12 @@ CREATE TABLE users (
     hashed_password TEXT NOT NULL,
     name VARCHAR(255) NOT NULL
 );
+INSERT INTO users (email, hashed_password, name)
+VALUES (
+        'test@example.com',
+        'hashed_password_placeholder',
+        'Test User'
+    );
 CREATE TABLE conversations (
     conversation_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title VARCHAR(100) DEFAULT 'Новый диалог',

@@ -52,3 +52,11 @@ class MessageRepository:
         result = await self.session.execute(stmt)
         domain = result.scalar_one_or_none()
         return domain
+
+    async def get_conversation_by_id(self, conversation_id: int, user_id: int) -> Conversation | None:
+        stmt = select(Conversation).where(
+            Conversation.conversation_id == conversation_id,
+            Conversation.user_id == user_id,
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

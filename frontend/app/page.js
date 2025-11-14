@@ -13,18 +13,21 @@ import { Plus } from './components/copilot/icons';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
 
-
 const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
     return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const createSession = () => {
+const createSession = (conversationId = null) => {
   const now = new Date().toISOString();
   return {
     id: generateId(),
+    conversationId: conversationId, // ID из БД (null если еще не создан)
     title: 'Новый диалог',
     createdAt: now,
     updatedAt: now,
@@ -33,14 +36,17 @@ const createSession = () => {
 };
 
 export default function Home() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, userId, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);
   const [sessions, setSessions] = useState([initialSession]);
   const [activeSessionId, setActiveSessionId] = useState(initialSession.id);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
-  const [typingState, setTypingState] = useState({ messageId: null, fullText: '' });
+  const [typingState, setTypingState] = useState({
+    messageId: null,
+    fullText: '',
+  });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
 
@@ -55,8 +61,10 @@ export default function Home() {
   }, [isAuthenticated, isLoading, router]);
 
   const updateSession = useCallback((sessionId, updater) => {
-    setSessions(prevSessions => {
-      const sessionIndex = prevSessions.findIndex(session => session.id === sessionId);
+    setSessions((prevSessions) => {
+      const sessionIndex = prevSessions.findIndex(
+        (session) => session.id === sessionId,
+      );
       if (sessionIndex === -1) {
         return prevSessions;
       }
@@ -68,10 +76,31 @@ export default function Home() {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
       return [updatedSession, ...remainingSessions];
     });
   }, []);
+
+  // Маппинг тем с хэштегами на domains FastAPI
+  const topicToDomain = {
+    юриспруденция: 'legal',
+    маркетинг: 'marketing',
+    финансы: 'finance',
+    продажи: 'sales',
+    управление: 'management',
+    HR: 'hr',
+  };
+
+  const extractDomainFromQuestion = (question) => {
+    const hashtagMatch = question.match(/^#([^\s]+)/);
+    if (hashtagMatch) {
+      const topic = hashtagMatch[1];
+      return topicToDomain[topic] || 'general';
+    }
+    return 'general';
+  };
 
   const handleSubmitQuestion = async (question, files = []) => {
     if (!question.trim() && files.length === 0) {
@@ -83,8 +112,8 @@ export default function Home() {
     
     let messageContent = question;
     if (files.length > 0) {
-      const fileNames = files.map(f => f.name).join(', ');
-      messageContent = question 
+      const fileNames = files.map((f) => f.name).join(', ');
+      messageContent = question
         ? `${question}\n\n[Прикреплено файлов: ${files.length} - ${fileNames}]`
         : `[Прикреплено файлов: ${files.length} - ${fileNames}]`;
     }
@@ -94,15 +123,19 @@ export default function Home() {
       role: 'user',
       content: messageContent,
       timestamp,
-      files: files.length > 0 ? files.map(f => ({ name: f.name, size: f.size })) : undefined,
+      files:
+        files.length > 0
+          ? files.map((f) => ({ name: f.name, size: f.size }))
+          : undefined,
     };
 
-    updateSession(sessionId, session => ({
+    updateSession(sessionId, (session) => ({
       ...session,
       messages: [...session.messages, userMessage],
-      title: session.messages.length === 0 
-        ? (question || `Файлы (${files.length})`) 
-        : session.title,
+      title:
+        session.messages.length === 0
+          ? question || `Файлы (${files.length})`
+          : session.title,
       updatedAt: timestamp,
     }));
 
@@ -114,8 +147,8 @@ export default function Home() {
       
       if (files.length > 0) {
         answer = await generateMockAnswer(
-          question || `Обработка ${files.length} файлов`, 
-          'business'
+          question || `Обработка ${files.length} файлов`,
+          'business',
         );
       } else {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -131,13 +164,16 @@ export default function Home() {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.detail || `HTTP error! status: ${response.status}`,
+          );
         }
 
         const data = await response.json();
         answer = data.response || 'Не удалось получить ответ';
       }
-      
+
       const answerMessageId = generateId();
       const answerTimestamp = new Date().toISOString();
       const assistantMessage = {
@@ -147,7 +183,7 @@ export default function Home() {
         timestamp: answerTimestamp,
       };
 
-      updateSession(sessionId, session => ({
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
         updatedAt: answerTimestamp,
@@ -168,7 +204,7 @@ export default function Home() {
         timestamp: errorTimestamp,
       };
 
-      updateSession(sessionId, session => ({
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
         updatedAt: errorTimestamp,
@@ -188,7 +224,7 @@ export default function Home() {
 
   const handleCreateNewSession = () => {
     const newSession = createSession();
-    setSessions(prevSessions => [newSession, ...prevSessions]);
+    setSessions((prevSessions) => [newSession, ...prevSessions]);
     setActiveSessionId(newSession.id);
     setTypingState({ messageId: null, fullText: '' });
     setIsHeaderMenuOpen(false);
@@ -200,12 +236,14 @@ export default function Home() {
   };
 
   const handleDeleteSession = useCallback((sessionId) => {
-    setSessions(prevSessions => {
+    setSessions((prevSessions) => {
       if (prevSessions.length === 0) {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
 
       if (remainingSessions.length === prevSessions.length) {
         return prevSessions;
@@ -229,7 +267,7 @@ export default function Home() {
   }, []);
 
   const toggleHeaderMenu = () => {
-    setIsHeaderMenuOpen(prev => !prev);
+    setIsHeaderMenuOpen((prev) => !prev);
   };
 
   const closeHeaderMenu = () => {
@@ -244,17 +282,19 @@ export default function Home() {
     }
   };
 
-  const activeSession = sessions.find(session => session.id === activeSessionId) ?? sessions[0];
+  const activeSession =
+    sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
 
   const sessionSummaries = useMemo(
     () =>
-      sessions.map(session => ({
+      sessions.map((session) => ({
         id: session.id,
         title: session.title,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messagesCount: session.messages.length,
-        lastMessagePreview: session.messages[session.messages.length - 1]?.content,
+        lastMessagePreview:
+          session.messages[session.messages.length - 1]?.content,
       })),
     [sessions],
   );
@@ -326,8 +366,12 @@ export default function Home() {
                 {isHeaderMenuOpen && (
                   <div className={styles.headerDropdown} role="menu">
                     <div className={styles.headerDropdownHeader}>
-                      <span className={styles.headerDropdownTitle}>Профиль</span>
-                      <p className={styles.headerDropdownSubtitle}>user@example.com</p>
+                      <span className={styles.headerDropdownTitle}>
+                        Профиль
+                      </span>
+                      <p className={styles.headerDropdownSubtitle}>
+                        user@example.com
+                      </p>
                     </div>
                     <div className={styles.headerDropdownItem} role="menuitem">
                       <Toggle
