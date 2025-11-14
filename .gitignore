@@ -3,8 +3,6 @@ backend/llm_service/.mypy_cache
 backend/llm_service/.ruff_cache
 backend/llm_service/logs
 backend/llm_service/app/**/__pycache__/
-scripts/test_results_*.json
-scripts/test_results_*.txt
 .idea/
 frontend/node_modules
 frontend/.pnp
@@ -28,3 +26,4 @@ frontend/.env*
 frontend/.vercel
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
+.vscode/

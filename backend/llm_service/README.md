@@ -32,17 +32,12 @@ FastAPI микросервис для обработки текстовых за
 | app/api/endpoints/health.py                 | GET /health endpoint          |
 | app/schemas/chat.py                         | ChatRequest, ChatResponse     |
 | app/schemas/conversation.py                 | Conversation schemas          |
-| app/schemas/task.py                         | TaskMessage, TaskStatus       |
 | app/models/base.py                          | Base класс моделей            |
-| app/models/task.py                          | Task ORM модель               |
 | app/services/mistral_service.py             | Клиент Mistral AI API         |
-| app/services/minio_service.py               | Работа с MinIO                |
-| app/services/task_service.py                | CRUD задач                    |
 | app/repositories/message_repository.py      | Repository для сообщений      |
 | app/repositories/conversation_repository.py | Repository для диалогов       |
 | app/models/conversation.py                  | ORM модель диалога            |
 | app/models/message.py                       | ORM модель сообщения          |
-| app/consumers/task_consumer.py              | Consumer с aio-pika           |
 | app/middleware/cors.py                      | CORS настройки                |
 | app/utils/logger.py                         | Структурированное логирование |
 | app/prompts/system_prompts.py               | Системные промпты для доменов |

@@ -11,62 +11,75 @@ from app.utils import log
 router = APIRouter()
 
 
+def _prepare_enriched_prompt(
+    is_first_message: bool,
+    domain: str,
+    user_message: str,
+) -> str | None:
+    if not is_first_message:
+        return None
+
+    system_prompt = get_system_prompt(domain)
+    log.info(f"First message detected - enriched with system prompt for domain: {domain}")
+    return f"{system_prompt}\n\n{user_message}"
+
+
+async def _validate_conversation(
+    message_repo: MessageRepository,
+    conversation_id: int,
+    user_id: int,
+) -> int:
+    conversation = await message_repo.get_conversation_by_id(conversation_id, user_id=user_id)
+    if conversation is None:
+        log.error(f"Conversation {conversation_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Conversation {conversation_id} not found. Please create it first.",
+        )
+    return conversation.conversation_id
+
+
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
 async def chat_endpoint(
     request_body: ChatRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
-    user_id = request_body.user_id
-    conversation_id = request_body.conversation_id
     domain = request_body.domain or "general"
-    user_message = request_body.message
 
     log.info(
-        f"Chat request received - user_id: {user_id}, conversation_id: {conversation_id}, domain: {domain}, "
-        f"message length: {len(user_message)} characters"
+        f"Chat request received - user_id: {request_body.user_id}, "
+        f"conversation_id: {request_body.conversation_id}, domain: {domain}, "
+        f"message length: {len(request_body.message)} characters"
     )
 
     try:
         message_repo = MessageRepository(db)
 
-        conversation = await message_repo.get_conversation_by_id(conversation_id, user_id=user_id)
-        if conversation is None:
-            log.error(f"Conversation {conversation_id} not found")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Conversation {conversation_id} not found. Please create it first.",
-            )
-
-        actual_conversation_id = conversation.conversation_id
+        actual_conversation_id = await _validate_conversation(
+            message_repo, request_body.conversation_id, request_body.user_id
+        )
 
         is_first_message = await message_repo.check_if_first_message(actual_conversation_id)
         log.info(f"Is first message in conversation {actual_conversation_id}: {is_first_message}")
 
-        enriched_prompt = None
-        if is_first_message:
-            system_prompt = get_system_prompt(domain)
-            enriched_prompt = f"{system_prompt}\n\n{user_message}"
-            log.info(f"First message detected - enriched with system prompt for domain: {domain}")
+        enriched_prompt = _prepare_enriched_prompt(is_first_message, domain, request_body.message)
 
         history = await message_repo.get_last_messages(actual_conversation_id, limit=5)
         log.info(f"Loaded {len(history)} history messages for context")
 
-        history_messages = [{"role": msg.role, "content": msg.content} for msg in history]
-
         user_msg_record = await message_repo.save_message(
             conversation_id=actual_conversation_id,
             role="user",
-            content=user_message,
+            content=request_body.message,
             enriched_prompt=enriched_prompt,
         )
         log.info(f"Saved user message with id: {user_msg_record.message_id}")
 
-        mistral_service = request.app.state.mistral_service
-        response_text = await mistral_service.generate(
-            prompt=user_message,
+        response_text = await request.app.state.mistral_service.generate(
+            prompt=request_body.message,
             domain=domain,
-            history_messages=history_messages,
+            history_messages=[{"role": msg.role, "content": msg.content} for msg in history],
         )
 
         log.info(f"Chat response generated - domain: {domain}, response length: {len(response_text)} characters")

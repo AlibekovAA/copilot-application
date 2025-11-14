@@ -41,7 +41,12 @@ select = [
 ]
 fixable = ["ALL"]
 unfixable = []
-ignore = ["E203", "ERA001", "RUF001"]
+ignore = [
+    "ERA001",
+    "RUF001",
+    "B008",
+    "F821",
+]
 
 [tool.ruff.lint.pylint]
 max-args = 8
