@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: int = Field(default=0)
     LOG_DIR: str = Field(default="./logs")
 
+    DATABASE_URL: str = Field(
+        default="postgresql+asyncpg://user:postgres@db:5432/db",
+        description="PostgreSQL connection URL",
+    )
+
     MISTRAL_API_KEY: str = Field(default="", description="API key Mistral AI")
     MISTRAL_MODEL: str = Field(default="mistral-small-latest", description="Mistral AI model")
     MISTRAL_BASE_URL: str = Field(default="https://api.mistral.ai/v1", description="Mistral AI API base URL")

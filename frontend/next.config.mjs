@@ -5,6 +5,11 @@ const nextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  logging: {
+    fetches: {
+      fullUrl: true,
+    },
+  },
 };
 
 export default nextConfig;
