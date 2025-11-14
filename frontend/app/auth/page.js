@@ -1,13 +1,13 @@
 'use client';
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { WelcomeScreen } from "../components/auth/WelcomeScreen";
 import { LoginForm } from "../components/auth/LoginForm";
 import { SignupForm } from "../components/auth/SignupForm";
 import { useAuth } from "../context/AuthContext";
 import styles from "./page.module.css";
 
-export default function AuthPage() {
+function AuthPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const action = searchParams.get("action");
@@ -74,5 +74,13 @@ export default function AuthPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function AuthPage() {
+    return (
+        <Suspense fallback={<div>Загрузка...</div>}>
+            <AuthPageContent />
+        </Suspense>
     );
 }
