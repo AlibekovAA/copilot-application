@@ -1,0 +1,337 @@
+/* Общие стили для компонентов авторизации */
+
+.card {
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logoContainer {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logoContainerLarge {
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 1rem;
+}
+
+.logoContainerSmall {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+}
+
+.titleGradient {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.titleGradientPurple {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.titleGradientSignup {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.backButton {
+  width: fit-content;
+  margin-left: -0.5rem;
+  margin-bottom: 0.5rem;
+  color: #9ca3af;
+}
+
+.backButton:hover {
+  color: #9933ff;
+}
+
+.backButtonSignup:hover {
+  color: #9933ff;
+}
+
+.headerContent {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Кнопки */
+.buttonPrimary {
+  width: 100%;
+  height: 3rem;
+  background: #9933ff;
+  color: white;
+  transition: all 0.3s;
+  transform: scale(1);
+}
+
+.buttonPrimary:hover {
+  background: #8822ee;
+  transform: scale(1.05);
+}
+
+.buttonSecondary {
+  width: 100%;
+  height: 3rem;
+  border: 2px solid #9933ff;
+  color: #f3f4f6;
+  background: transparent;
+  transition: all 0.3s;
+  transform: scale(1);
+}
+
+.buttonSecondary:hover {
+  background: rgba(153, 51, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.buttonGradient {
+  width: 100%;
+  height: 2.75rem;
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  color: white;
+  transition: all 0.3s;
+  transform: scale(1);
+}
+
+.buttonGradient:hover {
+  background: linear-gradient(to right, #8822ee, #de2013);
+  transform: scale(1.05);
+}
+
+.buttonGradientSignup {
+  width: 100%;
+  height: 2.75rem;
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  color: white;
+  transition: all 0.3s;
+  transform: scale(1);
+}
+
+.buttonGradientSignup:hover {
+  background: linear-gradient(to right, #8822ee, #de2013);
+  transform: scale(1.05);
+}
+
+/* Формы */
+.label {
+  color: #d1d5db;
+  font-weight: 500;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.input {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #f3f4f6;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input::selection {
+  background-color: rgba(153, 51, 255, 0.3);
+  color: #f3f4f6;
+}
+
+.input::-moz-selection {
+  background-color: rgba(153, 51, 255, 0.3);
+  color: #f3f4f6;
+}
+
+.input:focus {
+  border-color: #9933ff;
+}
+
+.inputSignup:focus {
+  border-color: #9933ff;
+}
+
+.textDark {
+  color: #d1d5db;
+}
+
+/* Стили для CardDescription в темной теме */
+.card :global([data-slot="card-description"]) {
+  color: #d1d5db;
+}
+
+.inputPassword {
+  padding-right: 2.5rem;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.passwordToggle:hover {
+  color: #9933ff;
+}
+
+.passwordToggleSignup:hover {
+  color: #9933ff;
+}
+
+.checkbox {
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.checkbox:hover {
+  border-color: #9933ff;
+}
+
+.checkbox:checked {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  border-color: #9933ff;
+}
+
+.checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+}
+
+.checkbox:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(153, 51, 255, 0.1);
+}
+
+.checkboxSignup {
+  appearance: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.checkboxSignup:hover {
+  border-color: #9933ff;
+}
+
+.checkboxSignup:checked {
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  border-color: #9933ff;
+}
+
+.checkboxSignup:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+}
+
+.checkboxSignup:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(153, 51, 255, 0.1);
+}
+
+.link {
+  color: #b366ff;
+  transition: color 0.2s;
+}
+
+.link:hover {
+  color: #ef3124;
+}
+
+.linkSecondary {
+  color: #b366ff;
+  transition: color 0.2s;
+}
+
+.linkSecondary:hover {
+  color: #ef3124;
+}
+
+/* Валидация */
+.inputValid {
+  border-color: #10b981;
+}
+
+.inputInvalid {
+  border-color: #ef3124;
+}
+
+.errorMessage {
+  font-size: 0.75rem;
+  color: #ef3124;
+}
+
+.checkIcon {
+  position: absolute;
+  right: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: #10b981;
+}
+
+.checkboxLabel {
+  font-size: 0.875rem;
+  color: #d1d5db;
+}
+
+.footerText {
+  font-size: 0.875rem;
+  text-align: center;
+  color: #d1d5db;
+}
+
