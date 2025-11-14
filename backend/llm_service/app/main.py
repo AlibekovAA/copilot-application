@@ -5,6 +5,7 @@ from app.core import get_settings
 from app.core.events import lifespan
 from app.middleware.cors import add_cors_middleware
 
+
 settings = get_settings()
 
 app = FastAPI(

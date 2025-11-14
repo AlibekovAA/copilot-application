@@ -44,7 +44,7 @@ class MistralService:
             system_prompt = get_system_prompt(domain)
 
             log.info(
-                f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)}, "
+                f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)},"
                 f"history messages: {len(history_messages) if history_messages else 0}"
             )
 

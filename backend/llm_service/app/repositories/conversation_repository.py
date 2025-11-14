@@ -38,7 +38,9 @@ class ConversationRepository:
 
         stmt = (
             select(Conversation, func.coalesce(messages_count_subquery.c.messages_count, 0).label("msg_count"))
-            .outerjoin(messages_count_subquery, Conversation.conversation_id == messages_count_subquery.c.conversation_id)
+            .outerjoin(
+                messages_count_subquery, Conversation.conversation_id == messages_count_subquery.c.conversation_id
+            )
             .where(Conversation.user_id == user_id)
             .order_by(Conversation.created_at.desc())
             .limit(limit)
