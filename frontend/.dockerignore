@@ -44,5 +44,5 @@ next-env.d.ts
 
 # Git
 .git
-.gitignore
+../.gitignore
 
