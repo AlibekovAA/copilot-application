@@ -74,24 +74,37 @@ export default function Home() {
     });
   }, []);
 
-  const handleSubmitQuestion = async (question) => {
-    if (!question.trim()) {
+  const handleSubmitQuestion = async (question, files = []) => {
+    if (!question.trim() && files.length === 0) {
       return;
     }
 
     const sessionId = activeSessionId;
     const timestamp = new Date().toISOString();
+    
+    // Формируем текст сообщения с информацией о файлах
+    let messageContent = question;
+    if (files.length > 0) {
+      const fileNames = files.map(f => f.name).join(', ');
+      messageContent = question 
+        ? `${question}\n\n[Прикреплено файлов: ${files.length} - ${fileNames}]`
+        : `[Прикреплено файлов: ${files.length} - ${fileNames}]`;
+    }
+
     const userMessage = {
       id: generateId(),
       role: 'user',
-      content: question,
+      content: messageContent,
       timestamp,
+      files: files.length > 0 ? files.map(f => ({ name: f.name, size: f.size })) : undefined,
     };
 
     updateSession(sessionId, session => ({
       ...session,
       messages: [...session.messages, userMessage],
-      title: session.messages.length === 0 ? question : session.title,
+      title: session.messages.length === 0 
+        ? (question || `Файлы (${files.length})`) 
+        : session.title,
       updatedAt: timestamp,
     }));
 
@@ -99,7 +112,36 @@ export default function Home() {
     setTypingState({ messageId: null, fullText: '' });
 
     try {
-      const answer = await generateMockAnswer(question, 'business');
+      let answer;
+      
+      // Если есть файлы - пока используем мок (потом будет Go бэкенд)
+      if (files.length > 0) {
+        answer = await generateMockAnswer(
+          question || `Обработка ${files.length} файлов`, 
+          'business'
+        );
+      } else {
+        // Отправляем на Python бэкенд для простых текстовых сообщений
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: question,
+            domain: 'general', // Можно извлекать из темы, если нужно
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        answer = data.response || 'Не удалось получить ответ';
+      }
+      
       const answerMessageId = generateId();
       const answerTimestamp = new Date().toISOString();
       const assistantMessage = {
@@ -120,6 +162,26 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error generating answer:', error);
+      // Показываем ошибку пользователю
+      const errorMessage = 'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+      const errorMessageId = generateId();
+      const errorTimestamp = new Date().toISOString();
+      const assistantMessage = {
+        id: errorMessageId,
+        role: 'assistant',
+        content: errorMessage,
+        timestamp: errorTimestamp,
+      };
+
+      updateSession(sessionId, session => ({
+        ...session,
+        messages: [...session.messages, assistantMessage],
+        updatedAt: errorTimestamp,
+      }));
+
+      if (activeSessionIdRef.current === sessionId) {
+        setTypingState({ messageId: errorMessageId, fullText: errorMessage });
+      }
     } finally {
       setIsLoadingAnswer(false);
     }

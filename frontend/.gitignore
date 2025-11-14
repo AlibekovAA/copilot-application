@@ -1,6 +1,7 @@
 rm -rf# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
+.idea/
 /node_modules
 /.pnp
 .pnp.*
