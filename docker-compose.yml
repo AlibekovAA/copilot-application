@@ -1,7 +1,7 @@
 include:
   - db/db.yml
   - backend/llm_service/python.yml
-  - frontend/docker-compose.yml
+  - frontend/frontend.yml
 
 volumes:
   data:
