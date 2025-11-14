@@ -32,6 +32,7 @@ class MistralService:
         self,
         prompt: str,
         domain: str = "general",
+        history_messages: list[dict[str, str]] | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
         **kwargs: Any,
@@ -43,15 +44,20 @@ class MistralService:
             system_prompt = get_system_prompt(domain)
 
             log.info(
-                f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)}"
+                f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)}, "
+                f"history messages: {len(history_messages) if history_messages else 0}"
             )
+
+            messages = [{"role": "system", "content": system_prompt}]
+
+            if history_messages:
+                messages.extend(history_messages)
+
+            messages.append({"role": "user", "content": prompt})
 
             payload = {
                 "model": self.model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
+                "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 **kwargs,
