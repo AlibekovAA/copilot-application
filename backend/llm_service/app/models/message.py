@@ -1,18 +1,20 @@
-from datetime import datetime
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Text, func
+from datetime import datetime
+
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
-
-
-if TYPE_CHECKING:
-    from app.models.conversation import Conversation
+from app.models.conversation import Conversation
 
 
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (
+        Index("ix_messages_conversation_created", "conversation_id", "created_at"),
+        Index("ix_messages_conversation_id", "conversation_id"),
+    )
 
     message_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -35,7 +37,7 @@ class Message(Base):
         nullable=False,
     )
 
-    conversation: Mapped["Conversation"] = relationship(
+    conversation: Mapped[Conversation] = relationship(
         "Conversation",
         back_populates="messages",
     )

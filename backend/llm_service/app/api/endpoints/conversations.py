@@ -16,7 +16,7 @@ async def create_conversation(
     request_body: ConversationCreate,
     db: AsyncSession = Depends(get_db),
 ) -> ConversationResponse:
-    log.info(f"Creating new conversation for user {user_id}: {request_body.title}")
+    log.debug(f"Creating conversation for user {user_id}")
 
     try:
         conversation_repo = ConversationRepository(db)
@@ -27,7 +27,7 @@ async def create_conversation(
             business_context=request_body.business_context,
         )
 
-        log.info(f"Created conversation {conversation.conversation_id} for user {user_id}")
+        log.info(f"Created conversation {conversation.conversation_id}")
 
         return ConversationResponse(
             conversation_id=conversation.conversation_id,
@@ -53,7 +53,7 @@ async def get_conversations(
     offset: int = 0,
     db: AsyncSession = Depends(get_db),
 ) -> ConversationListResponse:
-    log.info(f"Fetching conversations for user {user_id} (limit={limit}, offset={offset})")
+    log.debug(f"Fetching conversations for user {user_id}")
 
     try:
         conversation_repo = ConversationRepository(db)
@@ -64,7 +64,7 @@ async def get_conversations(
             offset=offset,
         )
 
-        log.info(f"Found {len(conversations)} conversations for user {user_id} (total: {total})")
+        log.info(f"Found {len(conversations)} conversations (total: {total})")
 
         conversation_responses = [
             ConversationResponse(
