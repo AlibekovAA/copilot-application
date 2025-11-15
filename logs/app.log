@@ -1,0 +1,7 @@
+2025/11/13 20:17:58 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/13 20:19:57 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/13 20:21:29 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/13 20:21:47 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/13 20:21:51 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/13 20:24:29 main.go:31: [INFO] cfg &{LogLevel:0 LogDir:../logs Database:{URI:postgresql://user:password@postgres_db:5432/db?sslmode=disable} Addr::8080 JWTSecret:c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=}
+2025/11/13 20:24:48 main.go:31: [INFO] cfg &{LogLevel:0 LogDir:../logs Database:{URI:postgresql://user:password@postgres_db:5432/db?sslmode=disable} Addr::8080 JWTSecret:c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=}
