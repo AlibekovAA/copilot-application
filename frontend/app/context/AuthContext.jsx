@@ -10,12 +10,10 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Проверяем авторизацию при загрузке
     const token = localStorage.getItem('auth_token');
     if (token) {
       setIsAuthenticated(true);
-      // Устанавливаем cookie для middleware
-      document.cookie = `auth_token=${token}; path=/; max-age=86400`; // 24 часа
+      document.cookie = `auth_token=${token}; path=/; max-age=86400`;
     }
     setIsLoading(false);
   }, []);

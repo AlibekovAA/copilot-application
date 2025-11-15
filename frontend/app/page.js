@@ -8,9 +8,8 @@ import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { generateMockAnswer } from './utils/mockLLM';
 import { ScrollArea } from './components/ui/scroll-area';
-import { History } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
-import { Plus } from 'lucide-react';
+import { Plus } from './components/copilot/icons';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
 
@@ -82,7 +81,6 @@ export default function Home() {
     const sessionId = activeSessionId;
     const timestamp = new Date().toISOString();
     
-    // Формируем текст сообщения с информацией о файлах
     let messageContent = question;
     if (files.length > 0) {
       const fileNames = files.map(f => f.name).join(', ');
@@ -114,14 +112,12 @@ export default function Home() {
     try {
       let answer;
       
-      // Если есть файлы - пока используем мок (потом будет Go бэкенд)
       if (files.length > 0) {
         answer = await generateMockAnswer(
           question || `Обработка ${files.length} файлов`, 
           'business'
         );
       } else {
-        // Отправляем на Python бэкенд для простых текстовых сообщений
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const response = await fetch(`${apiUrl}/chat`, {
           method: 'POST',
@@ -130,7 +126,7 @@ export default function Home() {
           },
           body: JSON.stringify({
             message: question,
-            domain: 'general', // Можно извлекать из темы, если нужно
+            domain: 'general',
           }),
         });
 
@@ -162,7 +158,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error generating answer:', error);
-      // Показываем ошибку пользователю
       const errorMessage = 'Произошла ошибка при получении ответа. Попробуйте еще раз.';
       const errorMessageId = generateId();
       const errorTimestamp = new Date().toISOString();
@@ -266,7 +261,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={styles.loadingScreen}>
         <p>Загрузка...</p>
       </div>
     );
@@ -290,18 +285,32 @@ export default function Home() {
       <div className={`${styles.blob} ${styles.blob9}`}></div>
 
       <div className={styles.content}>
-        {/* Header */}
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.headerLeft}>
-              <div className={styles.headerIcon}>
-                <Logo className="h-6 w-6" />
+        <div className={styles.mainLayout}>
+          <aside className={styles.sidebar}>
+            <div className={styles.sidebarHeader}>
+              <div className={styles.sidebarHeaderContent}>
               </div>
-              <div className={styles.headerText}>
-                <h1>Alpha Copilot</h1>
-              </div>
+              <button
+                type="button"
+                onClick={handleCreateNewSession}
+                className={styles.sidebarNewButton}
+              >
+                <Plus className={styles.iconSmall} />
+                Новый диалог
+              </button>
             </div>
-            <div className={styles.headerRight}>
+            <div className={styles.sidebarContent}>
+              <SessionList
+                sessions={sessionSummaries}
+                activeSessionId={activeSessionId}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+              />
+            </div>
+          </aside>
+
+          <main className={styles.mainArea}>
+            <div className={styles.mainAreaHeader}>
               <div className={styles.headerMenu}>
                 <button
                   type="button"
@@ -342,71 +351,36 @@ export default function Home() {
                 )}
               </div>
             </div>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <div className={styles.mainLayout}>
-          {/* Left Sidebar - History */}
-          <aside className={styles.sidebar}>
-            <div className={styles.sidebarHeader}>
-              <div className={styles.sidebarHeaderContent}>
-                <History className="h-5 w-5" />
-                <h2>Диалоги</h2>
-              </div>
-              <button
-                type="button"
-                onClick={handleCreateNewSession}
-                className={styles.sidebarNewButton}
-              >
-                <Plus className="h-4 w-4" />
-                Новый диалог
-              </button>
-            </div>
-            <div className={styles.sidebarContent}>
-              <SessionList
-                sessions={sessionSummaries}
-                activeSessionId={activeSessionId}
-                onSelectSession={handleSelectSession}
-                onDeleteSession={handleDeleteSession}
-              />
-            </div>
-          </aside>
-
-          {/* Main Area */}
-          <main className={styles.mainArea}>
-            {/* Answer Display */}
             <ScrollArea className={styles.answerArea}>
               <div className={styles.answerContent}>
-                {activeSession && activeSession.messages.length > 0 ? (
-                  <ConversationView
-                    messages={activeSession.messages}
-                    typingState={typingState}
-                    onTypingComplete={handleTypingComplete}
-                  />
-                ) : (
-                  <div className={styles.emptyState}>
-                    <div className={styles.emptyStateIcon}>
-                      <Logo className="h-10 w-10" />
+                <div className={styles.conversationWrapper}>
+                  {activeSession && activeSession.messages.length > 0 ? (
+                    <ConversationView
+                      messages={activeSession.messages}
+                      typingState={typingState}
+                      onTypingComplete={handleTypingComplete}
+                    />
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <div className={styles.emptyStateIcon}>
+                        <Logo className={styles.iconXLarge} />
+                      </div>
+                      <h2>Добро пожаловать в Business Copilot</h2>
+                      <p>
+                        Задайте любой бизнес-вопрос и получите качественный ответ.
+                      </p>
                     </div>
-                    <h2>Добро пожаловать в Business Copilot</h2>
-                    <p>
-                      Задайте любой бизнес-вопрос и получите качественный ответ.
-          </p>
-        </div>
-                )}
+                  )}
+                </div>
+                
+                <div className={styles.questionPanelContent}>
+                  <QuestionPanel
+                    onSubmit={handleSubmitQuestion}
+                    isLoading={isLoadingAnswer}
+                  />
+                </div>
               </div>
             </ScrollArea>
-
-            {/* Question Input */}
-            <div className={styles.questionPanel}>
-              <div className={styles.questionPanelContent}>
-                <QuestionPanel
-                  onSubmit={handleSubmitQuestion}
-                  isLoading={isLoadingAnswer}
-                />
-              </div>
-            </div>
           </main>
         </div>
       </div>

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Send, Paperclip, X } from './icons';
@@ -9,45 +9,59 @@ import styles from './QuestionPanel.module.css';
 
 export function QuestionPanel({ onSubmit, isLoading }) {
   const [question, setQuestion] = useState('');
-  const [currentTopic, setCurrentTopic] = useState(null);
+  const [activeTopics, setActiveTopics] = useState([]);
   const [files, setFiles] = useState([]);
   const [validationError, setValidationError] = useState(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const isUpdatingTopicRef = useRef(false);
+  
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const maxHeight = window.innerHeight * 0.5;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    }
+  }, [question]);
 
   const handleSubmit = () => {
     if ((question.trim() || files.length > 0) && !isLoading) {
       onSubmit(question, files);
       setQuestion('');
-      setCurrentTopic(null);
+      setActiveTopics([]);
       setFiles([]);
       setValidationError(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     }
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
-  const handleSelectTopic = (topic) => {
+  const handleSelectTopic = (topics) => {
     isUpdatingTopicRef.current = true;
+    setActiveTopics(topics);
     
-    if (topic) {
-      // Добавляем или заменяем хэштег в начале вопроса
-      const questionWithoutHashtag = question.replace(/^#[^\s]+\s*/, '');
-      setQuestion(`#${topic} ${questionWithoutHashtag}`);
-      setCurrentTopic(topic);
+    const questionWithoutHashtags = question
+      .replace(/^(#[^\s]+(?:\s+#[^\s]+)*)\s*/g, '')
+      .replace(/\s+(#[^\s]+(?:\s+#[^\s]+)*)$/g, '')
+      .trim();
+    
+    if (topics.length > 0) {
+      const hashtags = topics.map(t => `#${t}`).join(' ');
+      setQuestion(questionWithoutHashtags ? `${questionWithoutHashtags} ${hashtags}` : hashtags);
     } else {
-      // Убираем хэштег
-      const questionWithoutHashtag = question.replace(/^#[^\s]+\s*/, '');
-      setQuestion(questionWithoutHashtag);
-      setCurrentTopic(null);
+      setQuestion(questionWithoutHashtags);
     }
     
     setTimeout(() => {
@@ -59,20 +73,32 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     const newValue = e.target.value;
     setQuestion(newValue);
     
-    // Если пользователь вручную изменил хэштег, обновляем тему
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    const maxHeight = window.innerHeight * 0.5;
+    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+    
     if (!isUpdatingTopicRef.current) {
-      const hashtagMatch = newValue.match(/^#([^\s]+)/);
-      if (hashtagMatch) {
-        const topicFromHashtag = hashtagMatch[1];
-        // Проверяем, есть ли такая тема в списке
-        const topics = ['юриспруденция', 'маркетинг', 'финансы', 'управление', 'продажи', 'HR'];
-        if (topics.includes(topicFromHashtag)) {
-          setCurrentTopic(topicFromHashtag);
-        } else {
-          setCurrentTopic(null);
-        }
+      const hashtagPattern = /\s+(#[^\s]+(?:\s+#[^\s]+)*)$/;
+      const match = newValue.match(hashtagPattern);
+      if (match) {
+        const hashtags = match[1].split(/\s+/);
+        const topicsFromHashtags = hashtags.map(h => h.replace('#', ''));
+        const validTopics = ['юриспруденция', 'маркетинг', 'финансы', 'управление', 'продажи', 'HR'];
+        const foundTopics = topicsFromHashtags.filter(t => validTopics.includes(t));
+        setActiveTopics([...new Set(foundTopics)]);
       } else {
-        setCurrentTopic(null);
+        const startHashtagPattern = /^(#[^\s]+(?:\s+#[^\s]+)*)\s*/;
+        const startMatch = newValue.match(startHashtagPattern);
+        if (startMatch) {
+          const hashtags = startMatch[1].split(/\s+/);
+          const topicsFromHashtags = hashtags.map(h => h.replace('#', ''));
+          const validTopics = ['юриспруденция', 'маркетинг', 'финансы', 'управление', 'продажи', 'HR'];
+          const foundTopics = topicsFromHashtags.filter(t => validTopics.includes(t));
+          setActiveTopics([...new Set(foundTopics)]);
+        } else {
+          setActiveTopics([]);
+        }
       }
     }
   };
@@ -111,66 +137,76 @@ export function QuestionPanel({ onSubmit, isLoading }) {
   };
 
   return (
-    <div className="space-y-4">
-      <Textarea
-        value={question}
-        onChange={handleQuestionChange}
-        onKeyDown={handleKeyDown}
-        placeholder="Задайте ваш вопрос здесь... (Ctrl + Enter для отправки)"
-        className="min-h-[120px] resize-none"
-        disabled={isLoading}
-      />
-      
-      {/* Загрузка файлов */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.txt,.png,.jpg,.doc,.jpeg"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isLoading}
-          />
+    <div className={styles.container}>
+      <div className={styles.textareaWrapper}>
+        <Textarea
+          ref={textareaRef}
+          value={question}
+          onChange={handleQuestionChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Задайте ваш вопрос здесь... (Enter для отправки, Shift+Enter для новой строки)"
+          className={styles.textarea}
+          disabled={isLoading}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".pdf,.docx,.txt,.png,.jpg,.doc,.jpeg"
+          onChange={handleFileSelect}
+          className={styles.hidden}
+          disabled={isLoading}
+        />
+        <button
+          type="button"
+          onClick={handleFileButtonClick}
+          disabled={isLoading || files.length >= MAX_FILES}
+          className={styles.attachButton}
+          aria-label="Прикрепить файл"
+        >
+          <Paperclip className={styles.attachIcon} />
+        </button>
+        
+        <div className={styles.buttonsInside}>
+          <div className={styles.footerLeft}>
+            <TopicButtons 
+              onSelectTopic={handleSelectTopic}
+              isLoading={isLoading}
+              activeTopics={activeTopics}
+            />
+          </div>
           <Button
-            type="button"
-            variant="outline"
-            onClick={handleFileButtonClick}
-            disabled={isLoading || files.length >= MAX_FILES}
-            className={`gap-2 ${styles.fileButton}`}
+            onClick={handleSubmit}
+            disabled={(!question.trim() && files.length === 0) || isLoading}
+            className={styles.submitButton}
           >
-            <Paperclip className="h-4 w-4" />
-            Прикрепить файл
+            {isLoading ? 'Отправка...' : 'Отправить'}
+            <Send className={styles.fileIcon} />
           </Button>
-          {files.length > 0 && (
-            <span className="text-sm text-gray-400">
-              {files.length} / {MAX_FILES} файлов
-            </span>
-          )}
         </div>
+      </div>
+      
+      <div className={styles.filesSection}>
 
-        {/* Ошибка валидации */}
         {validationError && (
-          <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-md p-2">
+          <div className={styles.validationError}>
             {validationError}
           </div>
         )}
 
-        {/* Список выбранных файлов */}
         {files.length > 0 && (
-          <div className="space-y-2">
+          <div className={styles.filesList}>
             {files.map((file, index) => (
               <div
                 key={`${file.name}-${index}`}
-                className="flex items-center justify-between gap-2 p-2 bg-gray-800/50 border border-gray-700 rounded-md text-sm"
+                className={styles.fileItem}
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Paperclip className="h-4 w-4 text-gray-400 shrink-0" />
-                  <span className="text-gray-300 truncate" title={file.name}>
+                <div className={styles.fileItemContent}>
+                  <Paperclip className={styles.fileIcon} />
+                  <span className={styles.fileName} title={file.name}>
                     {file.name}
                   </span>
-                  <span className="text-gray-500 text-xs shrink-0">
+                  <span className={styles.fileSize}>
                     {formatFileSize(file.size)}
                   </span>
                 </div>
@@ -178,33 +214,15 @@ export function QuestionPanel({ onSubmit, isLoading }) {
                   type="button"
                   onClick={() => handleRemoveFile(index)}
                   disabled={isLoading}
-                  className="text-gray-400 hover:text-red-400 transition-colors shrink-0 p-1"
+                  className={styles.removeFileButton}
                   aria-label={`Удалить ${file.name}`}
                 >
-                  <X className="h-4 w-4" />
+                  <X className={styles.removeFileIcon} />
                 </button>
               </div>
             ))}
           </div>
         )}
-      </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <TopicButtons 
-            onSelectTopic={handleSelectTopic}
-            isLoading={isLoading}
-            activeTopic={currentTopic}
-          />
-        </div>
-        <Button
-          onClick={handleSubmit}
-          disabled={(!question.trim() && files.length === 0) || isLoading}
-          className={`gap-2 shrink-0 ${styles.submitButton}`}
-        >
-          {isLoading ? 'Отправка...' : 'Отправить'}
-          <Send className="h-4 w-4" />
-        </Button>
       </div>
     </div>
   );

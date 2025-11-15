@@ -59,3 +59,197 @@
   box-shadow: 0 4px 12px -2px rgba(255, 107, 53, 0.4);
 }
 
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 66rem;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.textareaWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.textarea {
+  min-height: 2.5rem;
+  max-height: 50vh;
+  resize: none;
+  padding-right: 2.5rem;
+  padding-bottom: 4rem;
+  overflow-y: auto;
+  height: auto;
+  line-height: 1.5;
+  justify-content: center;
+}
+
+.attachButton {
+  position: absolute;
+  right: 0.75rem;
+  top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+}
+
+.attachButton:hover:not(:disabled) {
+  color: #9933ff;
+  transform: scale(1.1);
+}
+
+.attachButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+:global(.theme-light) .attachButton {
+  color: #64748b;
+}
+
+:global(.theme-light) .attachButton:hover:not(:disabled) {
+  color: #ef3124;
+}
+
+.attachIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.filesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filesHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.fileCount {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.validationError {
+  font-size: 0.875rem;
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+}
+
+.filesList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fileItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: rgba(31, 41, 55, 0.5);
+  border: 1px solid #374151;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.fileItemContent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.fileIcon {
+  width: 1rem;
+  height: 1rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.fileName {
+  color: #d1d5db;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  color: #6b7280;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.removeFileButton {
+  color: #9ca3af;
+  transition: color 0.2s;
+  flex-shrink: 0;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.removeFileButton:hover {
+  color: #f87171;
+}
+
+.removeFileIcon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.buttonsInside {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  z-index: 10;
+  pointer-events: none;
+  padding-right: 2.5rem;
+}
+
+.buttonsInside > * {
+  pointer-events: auto;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.footerLeft {
+  flex: 1;
+}
+

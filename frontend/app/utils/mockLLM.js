@@ -1,6 +1,3 @@
-// Mock LLM response generator
-// In production, replace this with actual LLM API calls
-
 const responses = {
   business: [
     "Based on market analysis and industry trends, I would recommend focusing on customer retention strategies. Research shows that increasing customer retention by 5% can increase profits by 25-95%. Consider implementing a loyalty program, personalized communication channels, and regular feedback mechanisms.",
@@ -25,10 +22,8 @@ const responses = {
 };
 
 export async function generateMockAnswer(question, studentSpecialty) {
-  // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
 
-  // Determine which response category to use
   let category = 'business';
   const specialty = studentSpecialty.toLowerCase();
   
@@ -40,11 +35,9 @@ export async function generateMockAnswer(question, studentSpecialty) {
     category = 'operations';
   }
 
-  // Get a random response from the category
   const categoryResponses = responses[category];
   const randomResponse = categoryResponses[Math.floor(Math.random() * categoryResponses.length)];
 
-  // Prefix with a contextual opener
   const openers = [
     `Great question! ${randomResponse}`,
     `Thank you for asking. ${randomResponse}`,
