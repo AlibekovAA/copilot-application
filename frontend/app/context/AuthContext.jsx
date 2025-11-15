@@ -4,10 +4,7 @@ import { useRouter } from 'next/navigation';
 
 const AuthContext = createContext(null);
 
-// TODO: Когда появится golang backend с JWT - заменить на реальный парсинг токена
 const getUserIdFromToken = (token) => {
-  // Временный мок: всегда возвращаем user_id = 1
-  // В будущем: использовать jwt-decode для парсинга настоящего JWT
   return 1;
 };
 

@@ -1,0 +1,52 @@
+.textarea {
+  display: flex;
+  min-height: 2.5rem;
+  width: 100%;
+  border-radius: 1.5rem;
+  border: 1px solid;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: none;
+}
+
+.textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.themeLight {
+  background-color: #000000;
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #1e293b;
+}
+
+.themeLight::placeholder {
+  color: #94a3b8;
+}
+
+.themeLight:focus {
+  border-color: #ef3124;
+  box-shadow: 0 0 0 2px rgba(239, 49, 36, 0.25);
+}
+
+.themeDark {
+  background-color: #000000;
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}
+
+.themeDark::placeholder {
+  color: #64748b;
+}
+
+.themeDark:focus {
+  border-color: #9933ff;
+  box-shadow: 0 0 0 2px rgba(153, 51, 255, 0.2);
+}
+
