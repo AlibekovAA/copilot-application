@@ -1,10 +1,11 @@
 .conversationList {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 1.5rem;
   max-width: 60rem;
   margin: 0 auto;
+  width: 100%;
+  align-items: stretch;
 }
 
 .card {
@@ -14,8 +15,8 @@
   background: var(--app-card-bg);
   backdrop-filter: blur(12px);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  width: 90%;
-  max-width: 100%;
+  width: fit-content;
+  max-width: 90%;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -27,11 +28,13 @@
 .cardLeft {
   align-self: flex-start;
   margin-right: auto;
+  margin-left: 0;
 }
 
 .cardRight {
   align-self: flex-end;
   margin-left: auto;
+  margin-right: 0;
 }
 
 .cardAssistant {
@@ -48,19 +51,21 @@
 .labelRow {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
 }
-
 
 .label {
   font-weight: 600;
   color: var(--app-accent-color);
   font-size: 0.8rem;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .messageTextWrapper {
   position: relative;
-  margin-top: 0.5rem;
+  margin-top: 0;
   width: 100%;
 }
 
@@ -140,7 +145,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
