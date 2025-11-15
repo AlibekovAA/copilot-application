@@ -2,14 +2,15 @@
 import { ScrollArea } from '../ui/scroll-area';
 import { Card } from '../ui/card';
 import { MessageSquare, Clock } from './icons';
+import styles from './QuestionHistory.module.css';
 
 export function QuestionHistory({ history, onSelectHistory }) {
   if (history.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-6">
-        <MessageSquare className="h-12 w-12 text-gray-600 mb-3" />
-        <p className="text-gray-400">Пока нет вопросов</p>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className={styles.emptyState}>
+        <MessageSquare className={styles.emptyIcon} />
+        <p className={styles.emptyText}>Пока нет вопросов</p>
+        <p className={styles.emptySubtext}>
           Задайте первый вопрос, чтобы начать
         </p>
       </div>
@@ -17,23 +18,23 @@ export function QuestionHistory({ history, onSelectHistory }) {
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="space-y-3 p-4">
+    <ScrollArea className={styles.scrollAreaFull}>
+      <div className={styles.historyList}>
         {history.map((item) => (
           <Card
             key={item.id}
-            className="p-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] transition-colors border-gray-700 bg-[rgba(20,20,20,0.6)]"
+            className={styles.historyCard}
             onClick={() => onSelectHistory(item)}
           >
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <MessageSquare className="h-4 w-4 text-[#9933ff] shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-300 line-clamp-2">
+            <div className={styles.historyContent}>
+              <div className={styles.historyHeader}>
+                <MessageSquare className={styles.historyIcon} />
+                <p className={styles.historyQuestion}>
                   {item.question}
                 </p>
               </div>
-              <div className="flex items-center justify-end gap-1 text-xs text-gray-500">
-                <Clock className="h-3 w-3" />
+              <div className={styles.historyFooter}>
+                <Clock className={styles.historyClockIcon} />
                 {formatTime(item.timestamp)}
               </div>
             </div>

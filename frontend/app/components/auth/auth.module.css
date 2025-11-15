@@ -1,10 +1,16 @@
-/* Общие стили для компонентов авторизации */
-
 .card {
   background: rgba(20, 20, 20, 0.95);
   backdrop-filter: blur(8px);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.card :global([data-slot="card-content"]) {
+  box-sizing: border-box;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
 }
 
 .logoContainer {
@@ -44,20 +50,6 @@
   -webkit-text-fill-color: transparent;
 }
 
-.titleGradientPurple {
-  background: linear-gradient(to right, #9933ff, #ef3124);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.titleGradientSignup {
-  background: linear-gradient(to right, #9933ff, #ef3124);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
 .backButton {
   width: fit-content;
   margin-left: -0.5rem;
@@ -65,10 +57,7 @@
   color: #9ca3af;
 }
 
-.backButton:hover {
-  color: #9933ff;
-}
-
+.backButton:hover,
 .backButtonSignup:hover {
   color: #9933ff;
 }
@@ -76,80 +65,114 @@
 .headerContent {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
 }
 
-/* Кнопки */
 .buttonPrimary {
-  width: 100%;
+  position: relative;
+  width: 60%;
   height: 3rem;
-  background: #9933ff;
-  color: white;
-  transition: all 0.3s;
+  background: #9933ff !important;
+  color: white !important;
+  transition: all 0.5s ease;
   transform: scale(1);
+  margin: 0 auto;
+  border: none !important;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.buttonPrimary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, #9933ff, #ef3124);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+}
+
+.buttonPrimary > * {
+  color: white !important;
+}
+
+.buttonPrimary:hover::after {
+  opacity: 1;
 }
 
 .buttonPrimary:hover {
-  background: #8822ee;
   transform: scale(1.05);
 }
 
 .buttonSecondary {
-  width: 100%;
+  width: 60%;
   height: 3rem;
-  border: 2px solid #9933ff;
-  color: #f3f4f6;
-  background: transparent;
-  transition: all 0.3s;
+  color: #ffffff !important;
+  background: rgba(20, 20, 30, 0.8) !important;
+  transition: all 0.5s ease, border 0.5s ease, background 0.5s ease;
   transform: scale(1);
+  margin:  auto;
+  cursor: pointer;
+  border: 1px solid #9933ff !important;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.buttonSecondary > * {
+  color: #ffffff !important;
 }
 
 .buttonSecondary:hover {
-  background: rgba(153, 51, 255, 0.2);
   transform: scale(1.05);
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.95), rgba(30, 20, 40, 0.95), rgba(20, 20, 30, 0.95)) !important;
+  box-shadow: inset 0 0 20px rgba(153, 51, 255, 0.6), inset 0 0 40px rgba(153, 51, 255, 0.3), 0 0 15px rgba(153, 51, 255, 0.2);
+  border: 1px solid transparent !important;
 }
+
+.buttonSecondary:hover > * {
+  color: #ffffff !important;
+}
+
 
 .buttonGradient {
-  width: 100%;
-  height: 2.75rem;
+  width: 30%;
+  height: 2.5rem;
   background: linear-gradient(to right, #9933ff, #ef3124);
   color: white;
   transition: all 0.3s;
   transform: scale(1);
+  margin: 1.5rem auto 0 auto;
+  display: block;
 }
 
-.buttonGradient:hover {
-  background: linear-gradient(to right, #8822ee, #de2013);
-  transform: scale(1.05);
-}
-
-.buttonGradientSignup {
-  width: 100%;
-  height: 2.75rem;
-  background: linear-gradient(to right, #9933ff, #ef3124);
-  color: white;
-  transition: all 0.3s;
-  transform: scale(1);
-}
-
+.buttonGradient:hover,
 .buttonGradientSignup:hover {
   background: linear-gradient(to right, #8822ee, #de2013);
   transform: scale(1.05);
 }
 
-/* Формы */
 .label {
   color: #d1d5db;
   font-weight: 500;
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   letter-spacing: -0.01em;
+  margin-bottom: 0.25rem;
+  display: block;
 }
 
 .input {
   border-color: rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
   color: #f3f4f6;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .input::placeholder {
@@ -178,7 +201,6 @@
   color: #d1d5db;
 }
 
-/* Стили для CardDescription в темной теме */
 .card :global([data-slot="card-description"]) {
   color: #d1d5db;
 }
@@ -192,16 +214,14 @@
   right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  background: none;
+  border: none;
   transition: color 0.2s;
 }
 
-.passwordToggle:hover {
-  color: #9933ff;
-}
-
+.passwordToggle:hover,
 .passwordToggleSignup:hover {
-  color: #9933ff;
+  color: #ef3124;
 }
 
 .checkbox {
@@ -243,64 +263,23 @@
   box-shadow: 0 0 0 3px rgba(153, 51, 255, 0.1);
 }
 
-.checkboxSignup {
-  appearance: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.25rem;
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.checkboxSignup:hover {
-  border-color: #9933ff;
-}
-
-.checkboxSignup:checked {
-  background: linear-gradient(to right, #9933ff, #ef3124);
-  border-color: #9933ff;
-}
-
-.checkboxSignup:checked::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(45deg);
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-}
-
-.checkboxSignup:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(153, 51, 255, 0.1);
-}
-
 .link {
   color: #b366ff;
   transition: color 0.2s;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  display: inline;
 }
 
-.link:hover {
-  color: #ef3124;
-}
-
-.linkSecondary {
-  color: #b366ff;
-  transition: color 0.2s;
-}
-
+.link:hover,
 .linkSecondary:hover {
   color: #ef3124;
 }
 
-/* Валидация */
 .inputValid {
   border-color: #10b981;
 }
@@ -327,11 +306,78 @@
 .checkboxLabel {
   font-size: 0.875rem;
   color: #d1d5db;
+  line-height: 1.5;
 }
 
 .footerText {
   font-size: 0.875rem;
   text-align: center;
   color: #d1d5db;
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.iconSmall {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.iconMargin {
+  margin-right: 0.5rem;
+}
+
+.flexCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.spaceY3 {
+  gap: 1.25rem;
+}
+
+.spaceY4 {
+  gap: 1.5rem;
+}
+
+.spaceY2 {
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.flexBetween {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px;
+}
+
+.flexStart {
+  display: flex;
+  align-items: start;
+}
+
+.spaceX2 {
+  gap: 0.5rem;
+}
+
+.textCenter {
+  text-align: center;
+}
+
+.relative {
+  position: relative;
+}
+
+.cursorPointer {
+  cursor: pointer;
+}
+
+.pt6 {
+  padding-top: 0.5rem;
 }
 

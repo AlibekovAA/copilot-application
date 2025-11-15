@@ -10,14 +10,12 @@ const TOPICS = [
   'HR',
 ];
 
-export function TopicButtons({ onSelectTopic, isLoading, activeTopic }) {
+export function TopicButtons({ onSelectTopic, isLoading, activeTopics = [] }) {
   const handleTopicClick = (topic) => {
-    if (activeTopic === topic) {
-      // Если кликнули на активную тему, деактивируем её
-      onSelectTopic(null);
+    if (activeTopics.includes(topic)) {
+      onSelectTopic(activeTopics.filter(t => t !== topic));
     } else {
-      // Активируем новую тему
-      onSelectTopic(topic);
+      onSelectTopic([...activeTopics, topic]);
     }
   };
 
@@ -28,7 +26,7 @@ export function TopicButtons({ onSelectTopic, isLoading, activeTopic }) {
           key={topic}
           onClick={() => handleTopicClick(topic)}
           disabled={isLoading}
-          className={`${styles.topicButton} ${activeTopic === topic ? styles.active : ''}`}
+          className={`${styles.topicButton} ${activeTopics.includes(topic) ? styles.active : ''}`}
         >
           {topic}
         </button>

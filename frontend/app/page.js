@@ -8,17 +8,14 @@ import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { generateMockAnswer } from './utils/mockLLM';
 import { ScrollArea } from './components/ui/scroll-area';
-import { History } from './components/copilot/icons';
+import { History, Plus } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
-import { Plus } from 'lucide-react';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
 
+
 const generateId = () => {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -28,7 +25,7 @@ const createSession = (conversationId = null) => {
   const now = new Date().toISOString();
   return {
     id: generateId(),
-    conversationId: conversationId, // ID из БД (null если еще не создан)
+    conversationId: conversationId,
     title: 'Новый диалог',
     createdAt: now,
     updatedAt: now,
@@ -44,10 +41,7 @@ export default function Home() {
   const [sessions, setSessions] = useState([initialSession]);
   const [activeSessionId, setActiveSessionId] = useState(initialSession.id);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
-  const [typingState, setTypingState] = useState({
-    messageId: null,
-    fullText: '',
-  });
+  const [typingState, setTypingState] = useState({ messageId: null, fullText: '' });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
 
@@ -62,10 +56,8 @@ export default function Home() {
   }, [isAuthenticated, isLoading, router]);
 
   const updateSession = useCallback((sessionId, updater) => {
-    setSessions((prevSessions) => {
-      const sessionIndex = prevSessions.findIndex(
-        (session) => session.id === sessionId,
-      );
+    setSessions(prevSessions => {
+      const sessionIndex = prevSessions.findIndex(session => session.id === sessionId);
       if (sessionIndex === -1) {
         return prevSessions;
       }
@@ -77,14 +69,11 @@ export default function Home() {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(
-        (session) => session.id !== sessionId,
-      );
+      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
       return [updatedSession, ...remainingSessions];
     });
   }, []);
 
-  // Маппинг тем с хэштегами на domains FastAPI
   const topicToDomain = {
     юриспруденция: 'legal',
     маркетинг: 'marketing',
@@ -110,12 +99,11 @@ export default function Home() {
 
     const sessionId = activeSessionId;
     const timestamp = new Date().toISOString();
-
-    // Формируем текст сообщения с информацией о файлах
+    
     let messageContent = question;
     if (files.length > 0) {
-      const fileNames = files.map((f) => f.name).join(', ');
-      messageContent = question
+      const fileNames = files.map(f => f.name).join(', ');
+      messageContent = question 
         ? `${question}\n\n[Прикреплено файлов: ${files.length} - ${fileNames}]`
         : `[Прикреплено файлов: ${files.length} - ${fileNames}]`;
     }
@@ -125,19 +113,15 @@ export default function Home() {
       role: 'user',
       content: messageContent,
       timestamp,
-      files:
-        files.length > 0
-          ? files.map((f) => ({ name: f.name, size: f.size }))
-          : undefined,
+      files: files.length > 0 ? files.map(f => ({ name: f.name, size: f.size })) : undefined,
     };
 
-    updateSession(sessionId, (session) => ({
+    updateSession(sessionId, session => ({
       ...session,
       messages: [...session.messages, userMessage],
-      title:
-        session.messages.length === 0
-          ? question || `Файлы (${files.length})`
-          : session.title,
+      title: session.messages.length === 0 
+        ? (question || `Файлы (${files.length})`) 
+        : session.title,
       updatedAt: timestamp,
     }));
 
@@ -146,29 +130,21 @@ export default function Home() {
 
     try {
       let answer;
-
-      // Если есть файлы - пока используем мок (потом будет Go бэкенд)
+      
       if (files.length > 0) {
         answer = await generateMockAnswer(
-          question || `Обработка ${files.length} файлов`,
-          'business',
+          question || `Обработка ${files.length} файлов`, 
+          'business'
         );
       } else {
-        // Отправляем на Python бэкенд для простых текстовых сообщений
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-        // Извлекаем domain из хэштега в вопросе
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
         const domain = extractDomainFromQuestion(question);
-
-        // Убираем хэштег из текста сообщения перед отправкой
         const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
-
-        // Получаем текущую сессию
+        
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
-
-        // Если это первое сообщение в сессии, создаем conversation в БД
+        
         if (!conversationId) {
           const createResponse = await fetch(
             `${apiUrl}/conversations?user_id=${userId}`,
@@ -190,8 +166,7 @@ export default function Home() {
 
           const createData = await createResponse.json();
           conversationId = createData.conversation_id;
-
-          // Обновляем сессию с реальным conversation_id из БД
+          
           updateSession(sessionId, (session) => ({
             ...session,
             conversationId: conversationId,
@@ -221,7 +196,7 @@ export default function Home() {
         const data = await response.json();
         answer = data.response || 'Не удалось получить ответ';
       }
-
+      
       const answerMessageId = generateId();
       const answerTimestamp = new Date().toISOString();
       const assistantMessage = {
@@ -231,7 +206,7 @@ export default function Home() {
         timestamp: answerTimestamp,
       };
 
-      updateSession(sessionId, (session) => ({
+      updateSession(sessionId, session => ({
         ...session,
         messages: [...session.messages, assistantMessage],
         updatedAt: answerTimestamp,
@@ -242,9 +217,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error generating answer:', error);
-      // Показываем ошибку пользователю
-      const errorMessage =
-        'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+      const errorMessage = 'Произошла ошибка при получении ответа. Попробуйте еще раз.';
       const errorMessageId = generateId();
       const errorTimestamp = new Date().toISOString();
       const assistantMessage = {
@@ -254,7 +227,7 @@ export default function Home() {
         timestamp: errorTimestamp,
       };
 
-      updateSession(sessionId, (session) => ({
+      updateSession(sessionId, session => ({
         ...session,
         messages: [...session.messages, assistantMessage],
         updatedAt: errorTimestamp,
@@ -274,7 +247,7 @@ export default function Home() {
 
   const handleCreateNewSession = () => {
     const newSession = createSession();
-    setSessions((prevSessions) => [newSession, ...prevSessions]);
+    setSessions(prevSessions => [newSession, ...prevSessions]);
     setActiveSessionId(newSession.id);
     setTypingState({ messageId: null, fullText: '' });
     setIsHeaderMenuOpen(false);
@@ -286,14 +259,12 @@ export default function Home() {
   };
 
   const handleDeleteSession = useCallback((sessionId) => {
-    setSessions((prevSessions) => {
+    setSessions(prevSessions => {
       if (prevSessions.length === 0) {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(
-        (session) => session.id !== sessionId,
-      );
+      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
 
       if (remainingSessions.length === prevSessions.length) {
         return prevSessions;
@@ -317,7 +288,7 @@ export default function Home() {
   }, []);
 
   const toggleHeaderMenu = () => {
-    setIsHeaderMenuOpen((prev) => !prev);
+    setIsHeaderMenuOpen(prev => !prev);
   };
 
   const closeHeaderMenu = () => {
@@ -332,26 +303,24 @@ export default function Home() {
     }
   };
 
-  const activeSession =
-    sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
+  const activeSession = sessions.find(session => session.id === activeSessionId) ?? sessions[0];
 
   const sessionSummaries = useMemo(
     () =>
-      sessions.map((session) => ({
+      sessions.map(session => ({
         id: session.id,
         title: session.title,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messagesCount: session.messages.length,
-        lastMessagePreview:
-          session.messages[session.messages.length - 1]?.content,
+        lastMessagePreview: session.messages[session.messages.length - 1]?.content,
       })),
     [sessions],
   );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={styles.loadingScreen}>
         <p>Загрузка...</p>
       </div>
     );
@@ -375,7 +344,6 @@ export default function Home() {
       <div className={`${styles.blob} ${styles.blob9}`}></div>
 
       <div className={styles.content}>
-        {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerContent}>
             <div className={styles.headerLeft}>
@@ -402,12 +370,8 @@ export default function Home() {
                 {isHeaderMenuOpen && (
                   <div className={styles.headerDropdown} role="menu">
                     <div className={styles.headerDropdownHeader}>
-                      <span className={styles.headerDropdownTitle}>
-                        Профиль
-                      </span>
-                      <p className={styles.headerDropdownSubtitle}>
-                        user@example.com
-                      </p>
+                      <span className={styles.headerDropdownTitle}>Профиль</span>
+                      <p className={styles.headerDropdownSubtitle}>user@example.com</p>
                     </div>
                     <div className={styles.headerDropdownItem} role="menuitem">
                       <Toggle
@@ -434,9 +398,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Main Content */}
         <div className={styles.mainLayout}>
-          {/* Left Sidebar - History */}
           <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
               <div className={styles.sidebarHeaderContent}>
@@ -462,9 +424,7 @@ export default function Home() {
             </div>
           </aside>
 
-          {/* Main Area */}
           <main className={styles.mainArea}>
-            {/* Answer Display */}
             <ScrollArea className={styles.answerArea}>
               <div className={styles.answerContent}>
                 {activeSession && activeSession.messages.length > 0 ? (
@@ -481,13 +441,12 @@ export default function Home() {
                     <h2>Добро пожаловать в Business Copilot</h2>
                     <p>
                       Задайте любой бизнес-вопрос и получите качественный ответ.
-                    </p>
-                  </div>
+          </p>
+        </div>
                 )}
               </div>
             </ScrollArea>
 
-            {/* Question Input */}
             <div className={styles.questionPanel}>
               <div className={styles.questionPanelContent}>
                 <QuestionPanel

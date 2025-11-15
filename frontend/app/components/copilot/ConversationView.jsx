@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../ui/card';
-import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Button } from '../ui/button';
 import { Copy, Check } from './icons';
 import { cn } from '../ui/utils';
 import styles from './ConversationView.module.css';
@@ -119,43 +117,35 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
         return (
           <Card
             key={message.id}
-            className={cn(styles.card, isAssistant && styles.cardAssistant)}
+            className={cn(
+              styles.card, 
+              isAssistant ? styles.cardAssistant : styles.cardUser,
+              isAssistant ? styles.cardLeft : styles.cardRight
+            )}
           >
-            <div className="flex items-start gap-3">
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarFallback
-                  className={cn(
-                    styles.persona,
-                    message.role === 'user' && styles.personaUser,
-                  )}
-                >
-                  {label}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-3">
+            <div className={styles.messageContent}>
+              {isAssistant && (
                 <div className={styles.labelRow}>
-                  <p className={styles.label}>{label === USER_LABEL ? 'Ваш вопрос' : 'Ответ'}</p>
-                  <span className={styles.timestamp}>{formatTimestamp(message.timestamp)}</span>
+                  <p className={styles.label}>Ответ</p>
                 </div>
-                <div>
-                  <p className={styles.messageText}>
-                    {content}
-                    {showTypingIndicator && <span className={styles.typingCaret} />}
-                  </p>
-                </div>
-                {isAssistant && !showTypingIndicator && content && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
+              )}
+              <div className={styles.messageTextWrapper}>
+                <p className={styles.messageText}>
+                  {content}
+                  {showTypingIndicator && <span className={styles.typingCaret} />}
+                </p>
+                {!showTypingIndicator && content && isAssistant && (
+                  <button
+                    type="button"
                     onClick={() => handleCopy(message.id, message.content)}
                     className={cn(
                       styles.copyButton,
                       copiedMessageId === message.id && styles.copyButtonCopied,
                     )}
+                    aria-label={copiedMessageId === message.id ? 'Скопировано' : 'Копировать ответ'}
                   >
-                    {copiedMessageId === message.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copiedMessageId === message.id ? 'Скопировано' : 'Копировать ответ'}
-                  </Button>
+                    {copiedMessageId === message.id ? <Check className={styles.copyIcon} /> : <Copy className={styles.copyIcon} />}
+                  </button>
                 )}
               </div>
             </div>
