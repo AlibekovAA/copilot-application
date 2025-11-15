@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.repositories import ConversationRepository
+from app.repositories import ConversationRepository, MessageRepository
 from app.schemas import ConversationCreate, ConversationListResponse, ConversationResponse
-from app.utils import log
+from app.utils import handle_api_error, log
 
 
 router = APIRouter()
+
+MAX_CONVERSATIONS_LIMIT = 100
 
 
 @router.post("/conversations", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
@@ -27,6 +29,9 @@ async def create_conversation(
             business_context=request_body.business_context,
         )
 
+        await db.commit()
+        await db.refresh(conversation)
+
         log.info(f"Created conversation {conversation.conversation_id}")
 
         return ConversationResponse(
@@ -39,11 +44,7 @@ async def create_conversation(
         )
 
     except Exception as e:
-        log.error(f"Error creating conversation: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
-        ) from e
+        raise handle_api_error(e, "create conversation") from e
 
 
 @router.get("/conversations", response_model=ConversationListResponse, status_code=status.HTTP_200_OK)
@@ -54,6 +55,13 @@ async def get_conversations(
     db: AsyncSession = Depends(get_db),
 ) -> ConversationListResponse:
     log.debug(f"Fetching conversations for user {user_id}")
+
+    if limit < 1 or limit > MAX_CONVERSATIONS_LIMIT or offset < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid pagination parameters: limit must be between 1 and {MAX_CONVERSATIONS_LIMIT}, "
+            "offset must be >= 0.",
+        )
 
     try:
         conversation_repo = ConversationRepository(db)
@@ -84,8 +92,38 @@ async def get_conversations(
         )
 
     except Exception as e:
-        log.error(f"Error fetching conversations: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
-        ) from e
+        raise handle_api_error(e, "fetch conversations") from e
+
+
+@router.get("/conversations/{conversation_id}/messages", status_code=status.HTTP_200_OK)
+async def get_conversation_messages(
+    conversation_id: int,
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    log.debug(f"Fetching messages for conversation {conversation_id}, user {user_id}")
+
+    try:
+        conversation_repo = ConversationRepository(db)
+        message_repo = MessageRepository(db)
+
+        conversation = await conversation_repo.get_conversation_by_id(conversation_id, user_id)
+        if not conversation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        messages = await message_repo.get_all_messages(conversation_id)
+
+        log.info(f"Found {len(messages)} messages for conversation {conversation_id}")
+
+        return {
+            "conversation_id": conversation_id,
+            "messages": messages,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise handle_api_error(e, "fetch conversation messages") from e

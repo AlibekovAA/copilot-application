@@ -1,10 +1,11 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Send, Paperclip, X } from './icons';
 import { TopicButtons } from './TopicButtons';
 import { validateNewFiles, formatFileSize, MAX_FILES } from '../../utils/fileValidation';
+import { extractTopicsFromHashtags, removeHashtagsFromText } from '../../constants/topics';
 import styles from './QuestionPanel.module.css';
 
 export function QuestionPanel({ onSubmit, isLoading }) {
@@ -15,15 +16,19 @@ export function QuestionPanel({ onSubmit, isLoading }) {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const isUpdatingTopicRef = useRef(false);
-  
-  useEffect(() => {
+
+  const updateTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
       const maxHeight = window.innerHeight * 0.5;
       textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
     }
-  }, [question]);
+  }, []);
+
+  useEffect(() => {
+    updateTextareaHeight();
+  }, [question, updateTextareaHeight]);
 
   const handleSubmit = () => {
     if ((question.trim() || files.length > 0) && !isLoading) {
@@ -48,60 +53,35 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     }
   };
 
-  const handleSelectTopic = (topics) => {
+  const handleSelectTopic = useCallback((topics) => {
     isUpdatingTopicRef.current = true;
     setActiveTopics(topics);
-    
-    const questionWithoutHashtags = question
-      .replace(/^(#[^\s]+(?:\s+#[^\s]+)*)\s*/g, '')
-      .replace(/\s+(#[^\s]+(?:\s+#[^\s]+)*)$/g, '')
-      .trim();
-    
+
+    const questionWithoutHashtags = removeHashtagsFromText(question);
+
     if (topics.length > 0) {
-      const hashtags = topics.map(t => `#${t}`).join(' ');
-      setQuestion(questionWithoutHashtags ? `${questionWithoutHashtags} ${hashtags}` : hashtags);
+      const hashtag = `#${topics[0]}`;
+      setQuestion(questionWithoutHashtags ? `${questionWithoutHashtags} ${hashtag}` : hashtag);
     } else {
       setQuestion(questionWithoutHashtags);
     }
-    
+
     setTimeout(() => {
       isUpdatingTopicRef.current = false;
     }, 0);
-  };
+  }, [question]);
 
-  const handleQuestionChange = (e) => {
+  const handleQuestionChange = useCallback((e) => {
     const newValue = e.target.value;
     setQuestion(newValue);
-    
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    const maxHeight = window.innerHeight * 0.5;
-    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
-    
+
+    updateTextareaHeight();
+
     if (!isUpdatingTopicRef.current) {
-      const hashtagPattern = /\s+(#[^\s]+(?:\s+#[^\s]+)*)$/;
-      const match = newValue.match(hashtagPattern);
-      if (match) {
-        const hashtags = match[1].split(/\s+/);
-        const topicsFromHashtags = hashtags.map(h => h.replace('#', ''));
-        const validTopics = ['юриспруденция', 'маркетинг', 'финансы', 'управление', 'продажи', 'HR'];
-        const foundTopics = topicsFromHashtags.filter(t => validTopics.includes(t));
-        setActiveTopics([...new Set(foundTopics)]);
-      } else {
-        const startHashtagPattern = /^(#[^\s]+(?:\s+#[^\s]+)*)\s*/;
-        const startMatch = newValue.match(startHashtagPattern);
-        if (startMatch) {
-          const hashtags = startMatch[1].split(/\s+/);
-          const topicsFromHashtags = hashtags.map(h => h.replace('#', ''));
-          const validTopics = ['юриспруденция', 'маркетинг', 'финансы', 'управление', 'продажи', 'HR'];
-          const foundTopics = topicsFromHashtags.filter(t => validTopics.includes(t));
-          setActiveTopics([...new Set(foundTopics)]);
-        } else {
-          setActiveTopics([]);
-        }
-      }
+      const foundTopics = extractTopicsFromHashtags(newValue);
+      setActiveTopics(foundTopics.length > 0 ? [foundTopics[0]] : []);
     }
-  };
+  }, [updateTextareaHeight]);
 
   const handleFileSelect = (e) => {
     const selectedFiles = e.target.files;
@@ -110,7 +90,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     }
 
     const validation = validateNewFiles(selectedFiles, files);
-    
+
     if (!validation.valid) {
       setValidationError(validation.error);
       if (fileInputRef.current) {
@@ -121,7 +101,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
 
     setValidationError(null);
     setFiles([...files, ...Array.from(selectedFiles)]);
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -166,10 +146,10 @@ export function QuestionPanel({ onSubmit, isLoading }) {
         >
           <Paperclip className={styles.attachIcon} />
         </button>
-        
+
         <div className={styles.buttonsInside}>
           <div className={styles.footerLeft}>
-            <TopicButtons 
+            <TopicButtons
               onSelectTopic={handleSelectTopic}
               isLoading={isLoading}
               activeTopics={activeTopics}
@@ -185,7 +165,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
           </Button>
         </div>
       </div>
-      
+
       <div className={styles.filesSection}>
 
         {validationError && (
@@ -227,4 +207,3 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     </div>
   );
 }
-

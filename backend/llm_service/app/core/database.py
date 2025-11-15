@@ -10,6 +10,7 @@ settings = get_settings()
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.debug,
+    pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
 )
@@ -27,5 +28,6 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        finally:
-            await session.close()
+        except Exception:
+            await session.rollback()
+            raise

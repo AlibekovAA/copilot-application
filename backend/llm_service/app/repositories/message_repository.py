@@ -1,13 +1,10 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Message
+from app.repositories.base import BaseRepository
 
 
-class MessageRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
+class MessageRepository(BaseRepository):
     async def save_message(
         self,
         conversation_id: int,
@@ -38,3 +35,21 @@ class MessageRepository:
         result = await self.session.execute(stmt)
         messages = [{"role": row.role, "content": row.content} for row in result.all()]
         return list(reversed(messages))
+
+    async def get_all_messages(self, conversation_id: int) -> list[dict[str, str]]:
+        stmt = (
+            select(Message.message_id, Message.role, Message.content, Message.created_at)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
+        )
+        result = await self.session.execute(stmt)
+        messages = [
+            {
+                "id": row.message_id,
+                "role": row.role,
+                "content": row.content,
+                "timestamp": row.created_at.isoformat(),
+            }
+            for row in result.all()
+        ]
+        return messages

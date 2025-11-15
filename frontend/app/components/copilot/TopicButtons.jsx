@@ -1,22 +1,10 @@
 'use client';
+import { TOPICS } from '../../constants/topics';
 import styles from './TopicButtons.module.css';
-
-const TOPICS = [
-  'юриспруденция',
-  'маркетинг',
-  'финансы',
-  'управление',
-  'продажи',
-  'HR',
-];
 
 export function TopicButtons({ onSelectTopic, isLoading, activeTopics = [] }) {
   const handleTopicClick = (topic) => {
-    if (activeTopics.includes(topic)) {
-      onSelectTopic(activeTopics.filter(t => t !== topic));
-    } else {
-      onSelectTopic([...activeTopics, topic]);
-    }
+    onSelectTopic(activeTopics.includes(topic) ? [] : [topic]);
   };
 
   return (
@@ -34,4 +22,3 @@ export function TopicButtons({ onSelectTopic, isLoading, activeTopics = [] }) {
     </div>
   );
 }
-

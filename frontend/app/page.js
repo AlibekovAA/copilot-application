@@ -6,32 +6,20 @@ import { useTheme } from './context/ThemeContext';
 import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
+import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
 import { generateMockAnswer } from './utils/mockLLM';
+import {
+  createSession,
+  createUserMessage,
+  createAssistantMessage,
+  getSessionTitle,
+} from './utils/messageHelpers';
+import { extractDomainFromQuestion } from './constants/topics';
 import { ScrollArea } from './components/ui/scroll-area';
 import { Plus } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
-
-
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-};
-
-const createSession = (conversationId = null) => {
-  const now = new Date().toISOString();
-  return {
-    id: generateId(),
-    conversationId: conversationId,
-    title: 'Новый диалог',
-    createdAt: now,
-    updatedAt: now,
-    messages: [],
-  };
-};
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, logout } = useAuth();
@@ -41,7 +29,10 @@ export default function Home() {
   const [sessions, setSessions] = useState([initialSession]);
   const [activeSessionId, setActiveSessionId] = useState(initialSession.id);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
-  const [typingState, setTypingState] = useState({ messageId: null, fullText: '' });
+  const [typingState, setTypingState] = useState({
+    messageId: null,
+    fullText: '',
+  });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
 
@@ -55,9 +46,57 @@ export default function Home() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isAuthenticated || !userId) return;
+
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(
+          `${apiUrl}/conversations?user_id=${userId}&limit=50&offset=0`,
+        );
+
+        if (!response.ok) {
+          console.error(
+            '[History] Failed to load conversations, status:',
+            response.status,
+          );
+          return;
+        }
+
+        const data = await response.json();
+        console.log('[History] Loaded data:', data);
+
+        if (data.conversations && data.conversations.length > 0) {
+          const loadedSessions = data.conversations.map((conv) => ({
+            id: `conv-${conv.conversation_id}`,
+            conversationId: conv.conversation_id,
+            title: conv.title || 'Новый диалог',
+            createdAt: conv.created_at,
+            updatedAt: conv.created_at,
+            messages: [],
+          }));
+
+          console.log('[History] Setting sessions:', loadedSessions);
+          setSessions(loadedSessions);
+          setActiveSessionId(loadedSessions[0].id);
+        } else {
+          console.log('[History] No conversations found in database');
+        }
+      } catch (error) {
+        console.error('[History] Error loading conversations:', error);
+      }
+    };
+
+    loadConversations();
+  }, [isAuthenticated, userId]);
+
   const updateSession = useCallback((sessionId, updater) => {
-    setSessions(prevSessions => {
-      const sessionIndex = prevSessions.findIndex(session => session.id === sessionId);
+    setSessions((prevSessions) => {
+      const sessionIndex = prevSessions.findIndex(
+        (session) => session.id === sessionId,
+      );
       if (sessionIndex === -1) {
         return prevSessions;
       }
@@ -69,28 +108,12 @@ export default function Home() {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
       return [updatedSession, ...remainingSessions];
     });
   }, []);
-
-  const topicToDomain = {
-    юриспруденция: 'legal',
-    маркетинг: 'marketing',
-    финансы: 'finance',
-    продажи: 'sales',
-    управление: 'management',
-    HR: 'hr',
-  };
-
-  const extractDomainFromQuestion = (question) => {
-    const hashtagMatch = question.match(/^#([^\s]+)/);
-    if (hashtagMatch) {
-      const topic = hashtagMatch[1];
-      return topicToDomain[topic] || 'general';
-    }
-    return 'general';
-  };
 
   const handleSubmitQuestion = async (question, files = []) => {
     if (!question.trim() && files.length === 0) {
@@ -98,31 +121,16 @@ export default function Home() {
     }
 
     const sessionId = activeSessionId;
-    const timestamp = new Date().toISOString();
-    
-    let messageContent = question;
-    if (files.length > 0) {
-      const fileNames = files.map(f => f.name).join(', ');
-      messageContent = question 
-        ? `${question}\n\n[Прикреплено файлов: ${files.length} - ${fileNames}]`
-        : `[Прикреплено файлов: ${files.length} - ${fileNames}]`;
-    }
+    const userMessage = createUserMessage(question, files);
 
-    const userMessage = {
-      id: generateId(),
-      role: 'user',
-      content: messageContent,
-      timestamp,
-      files: files.length > 0 ? files.map(f => ({ name: f.name, size: f.size })) : undefined,
-    };
-
-    updateSession(sessionId, session => ({
+    updateSession(sessionId, (session) => ({
       ...session,
       messages: [...session.messages, userMessage],
-      title: session.messages.length === 0 
-        ? (question || `Файлы (${files.length})`) 
-        : session.title,
-      updatedAt: timestamp,
+      title:
+        session.messages.length === 0
+          ? getSessionTitle(question, files)
+          : session.title,
+      updatedAt: userMessage.timestamp,
     }));
 
     setIsLoadingAnswer(true);
@@ -130,21 +138,22 @@ export default function Home() {
 
     try {
       let answer;
-      
+
       if (files.length > 0) {
         answer = await generateMockAnswer(
-          question || `Обработка ${files.length} файлов`, 
-          'business'
+          question || `Обработка ${files.length} файлов`,
+          'business',
         );
       } else {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
         const domain = extractDomainFromQuestion(question);
         const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
-        
+
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
-        
+
         if (!conversationId) {
           const createResponse = await fetch(
             `${apiUrl}/conversations?user_id=${userId}`,
@@ -166,7 +175,7 @@ export default function Home() {
 
           const createData = await createResponse.json();
           conversationId = createData.conversation_id;
-          
+
           updateSession(sessionId, (session) => ({
             ...session,
             conversationId: conversationId,
@@ -196,45 +205,35 @@ export default function Home() {
         const data = await response.json();
         answer = data.response || 'Не удалось получить ответ';
       }
-      
-      const answerMessageId = generateId();
-      const answerTimestamp = new Date().toISOString();
-      const assistantMessage = {
-        id: answerMessageId,
-        role: 'assistant',
-        content: answer,
-        timestamp: answerTimestamp,
-      };
 
-      updateSession(sessionId, session => ({
+      const assistantMessage = createAssistantMessage(answer);
+
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
-        updatedAt: answerTimestamp,
+        updatedAt: assistantMessage.timestamp,
       }));
 
       if (activeSessionIdRef.current === sessionId) {
-        setTypingState({ messageId: answerMessageId, fullText: answer });
+        setTypingState({ messageId: assistantMessage.id, fullText: answer });
       }
     } catch (error) {
       console.error('Error generating answer:', error);
-      const errorMessage = 'Произошла ошибка при получении ответа. Попробуйте еще раз.';
-      const errorMessageId = generateId();
-      const errorTimestamp = new Date().toISOString();
-      const assistantMessage = {
-        id: errorMessageId,
-        role: 'assistant',
-        content: errorMessage,
-        timestamp: errorTimestamp,
-      };
+      const errorMessage =
+        'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+      const assistantMessage = createAssistantMessage(errorMessage);
 
-      updateSession(sessionId, session => ({
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
-        updatedAt: errorTimestamp,
+        updatedAt: assistantMessage.timestamp,
       }));
 
       if (activeSessionIdRef.current === sessionId) {
-        setTypingState({ messageId: errorMessageId, fullText: errorMessage });
+        setTypingState({
+          messageId: assistantMessage.id,
+          fullText: errorMessage,
+        });
       }
     } finally {
       setIsLoadingAnswer(false);
@@ -247,24 +246,58 @@ export default function Home() {
 
   const handleCreateNewSession = () => {
     const newSession = createSession();
-    setSessions(prevSessions => [newSession, ...prevSessions]);
+    setSessions((prevSessions) => [newSession, ...prevSessions]);
     setActiveSessionId(newSession.id);
     setTypingState({ messageId: null, fullText: '' });
     setIsHeaderMenuOpen(false);
   };
 
-  const handleSelectSession = (sessionId) => {
+  const handleSelectSession = async (sessionId) => {
     setActiveSessionId(sessionId);
     setTypingState({ messageId: null, fullText: '' });
+
+    const session = sessions.find((s) => s.id === sessionId);
+    console.log('[Messages] Selected session:', session);
+
+    if (session && session.conversationId && session.messages.length === 0) {
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        console.log(
+          '[Messages] Loading messages from:',
+          `${apiUrl}/conversations/${session.conversationId}/messages`,
+        );
+
+        const response = await fetch(
+          `${apiUrl}/conversations/${session.conversationId}/messages?user_id=${userId}`,
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[Messages] Loaded messages:', data);
+
+          updateSession(sessionId, (s) => ({
+            ...s,
+            messages: data.messages || [],
+          }));
+        } else {
+          console.error('[Messages] Failed to load, status:', response.status);
+        }
+      } catch (error) {
+        console.error('[Messages] Error loading messages:', error);
+      }
+    }
   };
 
   const handleDeleteSession = useCallback((sessionId) => {
-    setSessions(prevSessions => {
+    setSessions((prevSessions) => {
       if (prevSessions.length === 0) {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
 
       if (remainingSessions.length === prevSessions.length) {
         return prevSessions;
@@ -288,7 +321,7 @@ export default function Home() {
   }, []);
 
   const toggleHeaderMenu = () => {
-    setIsHeaderMenuOpen(prev => !prev);
+    setIsHeaderMenuOpen((prev) => !prev);
   };
 
   const closeHeaderMenu = () => {
@@ -303,17 +336,19 @@ export default function Home() {
     }
   };
 
-  const activeSession = sessions.find(session => session.id === activeSessionId) ?? sessions[0];
+  const activeSession =
+    sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
 
   const sessionSummaries = useMemo(
     () =>
-      sessions.map(session => ({
+      sessions.map((session) => ({
         id: session.id,
         title: session.title,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messagesCount: session.messages.length,
-        lastMessagePreview: session.messages[session.messages.length - 1]?.content,
+        lastMessagePreview:
+          session.messages[session.messages.length - 1]?.content,
       })),
     [sessions],
   );
@@ -332,17 +367,7 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.backgroundGradient}></div>
-      <div className={`${styles.blob} ${styles.blob1}`}></div>
-      <div className={`${styles.blob} ${styles.blob2}`}></div>
-      <div className={`${styles.blob} ${styles.blob3}`}></div>
-      <div className={`${styles.blob} ${styles.blob4}`}></div>
-      <div className={`${styles.blob} ${styles.blob5}`}></div>
-      <div className={`${styles.blob} ${styles.blob6}`}></div>
-      <div className={`${styles.blob} ${styles.blob7}`}></div>
-      <div className={`${styles.blob} ${styles.blob8}`}></div>
-      <div className={`${styles.blob} ${styles.blob9}`}></div>
-
+      <BackgroundBlobs />
       <div className={styles.content}>
         <div className={styles.mainAreaHeader}>
           <div className={styles.headerMenu}>
@@ -361,7 +386,9 @@ export default function Home() {
               <div className={styles.headerDropdown} role="menu">
                 <div className={styles.headerDropdownHeader}>
                   <span className={styles.headerDropdownTitle}>Профиль</span>
-                  <p className={styles.headerDropdownSubtitle}>user@example.com</p>
+                  <p className={styles.headerDropdownSubtitle}>
+                    user@example.com
+                  </p>
                 </div>
                 <div className={styles.headerDropdownItem} role="menuitem">
                   <Toggle
@@ -388,8 +415,7 @@ export default function Home() {
         <div className={styles.mainLayout}>
           <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
-              <div className={styles.sidebarHeaderContent}>
-              </div>
+              <div className={styles.sidebarHeaderContent}></div>
               <button
                 type="button"
                 onClick={handleCreateNewSession}
@@ -426,8 +452,8 @@ export default function Home() {
                     <h2>Добро пожаловать в Business Copilot</h2>
                     <p>
                       Задайте любой бизнес-вопрос и получите качественный ответ.
-          </p>
-        </div>
+                    </p>
+                  </div>
                 )}
               </div>
             </ScrollArea>

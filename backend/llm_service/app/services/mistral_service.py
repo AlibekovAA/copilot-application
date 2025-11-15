@@ -16,7 +16,8 @@ class MistralService:
         self.timeout = self.settings.MISTRAL_TIMEOUT
 
         if not self.api_key:
-            log.warning("MISTRAL_API_KEY not configured. Please set it in .env file.")
+            log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
+            raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
 
         limits = httpx.Limits(
             max_keepalive_connections=20,
@@ -43,9 +44,6 @@ class MistralService:
         max_tokens: int = 2000,
         **kwargs: Any,
     ) -> str:
-        if not self.api_key:
-            raise ValueError("MISTRAL_API_KEY not configured. Please set it in .env file.")
-
         try:
             log.debug(
                 f"Generating with model: {self.model}, "
@@ -70,7 +68,11 @@ class MistralService:
             response = await self.client.post("/chat/completions", json=payload)
             response.raise_for_status()
 
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError as e:
+                log.error(f"Failed to parse Mistral API response as JSON: {e}; body={response.text}")
+                raise ValueError("Invalid JSON in response from Mistral AI") from e
             choices = data.get("choices", [])
 
             if not choices:

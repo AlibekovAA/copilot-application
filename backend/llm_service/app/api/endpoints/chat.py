@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.prompts import get_system_prompt
 from app.repositories import ConversationRepository, MessageRepository
 from app.schemas import ChatRequest, ChatResponse
-from app.utils import log
+from app.utils import handle_api_error, log
 
 
 router = APIRouter()
@@ -50,9 +50,10 @@ async def chat_endpoint(
         history = await message_repo.get_last_messages(actual_conversation_id, limit=5)
         is_first_message = len(history) == 0
 
+        system_prompt = get_system_prompt(domain)
+
         enriched_prompt = None
         if is_first_message:
-            system_prompt = get_system_prompt(domain)
             enriched_prompt = f"{system_prompt}\n\n{request_body.message}"
             log.info(f"First message - enriched with system prompt for domain: {domain}")
 
@@ -63,7 +64,6 @@ async def chat_endpoint(
             enriched_prompt=enriched_prompt,
         )
 
-        system_prompt = get_system_prompt(domain)
         response_text = await request.app.state.mistral_service.generate(
             prompt=request_body.message,
             system_prompt=system_prompt,
@@ -79,8 +79,6 @@ async def chat_endpoint(
         )
 
         await db.commit()
-        await db.refresh(user_msg_record)
-        await db.refresh(assistant_msg_record)
 
         log.info(f"Saved messages: user={user_msg_record.message_id}, assistant={assistant_msg_record.message_id}")
 
@@ -91,15 +89,5 @@ async def chat_endpoint(
             status="success",
         )
 
-    except ValueError as e:
-        log.error(f"Validation error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
     except Exception as e:
-        log.error(f"Unexpected error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error",
-        ) from e
+        raise handle_api_error(e, "chat endpoint") from e
