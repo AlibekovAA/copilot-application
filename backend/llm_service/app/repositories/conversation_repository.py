@@ -1,13 +1,10 @@
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Conversation, Message
+from app.repositories.base import BaseRepository
 
 
-class ConversationRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
+class ConversationRepository(BaseRepository):
     async def create_conversation(
         self,
         user_id: int,
@@ -20,8 +17,6 @@ class ConversationRepository:
             business_context=business_context,
         )
         self.session.add(conversation)
-        await self.session.commit()
-        await self.session.refresh(conversation)
         return conversation
 
     async def get_conversations_by_user(
@@ -37,7 +32,11 @@ class ConversationRepository:
         )
 
         stmt = (
-            select(Conversation, func.coalesce(messages_count_subquery.c.messages_count, 0).label("msg_count"))
+            select(
+                Conversation,
+                func.coalesce(messages_count_subquery.c.messages_count, 0).label("msg_count"),
+                func.count().over().label("total_count"),
+            )
             .outerjoin(
                 messages_count_subquery, Conversation.conversation_id == messages_count_subquery.c.conversation_id
             )
@@ -50,15 +49,16 @@ class ConversationRepository:
         result = await self.session.execute(stmt)
         rows = result.all()
 
+        if not rows:
+            return [], 0
+
         conversations = []
+        total = rows[0][2] if rows else 0
+
         for row in rows:
             conversation = row[0]
             conversation.messages_count = row[1]
             conversations.append(conversation)
-
-        count_stmt = select(func.count(Conversation.conversation_id)).where(Conversation.user_id == user_id)
-        total_result = await self.session.execute(count_stmt)
-        total = total_result.scalar_one()
 
         return conversations, total
 

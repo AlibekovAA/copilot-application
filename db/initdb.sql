@@ -17,6 +17,8 @@ CREATE TABLE conversations (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     user_id BIGINT NOT NULL REFERENCES users(user_id)
 );
+CREATE INDEX ix_conversations_user_id ON conversations(user_id);
+CREATE INDEX ix_conversations_user_created ON conversations(user_id, created_at);
 CREATE TABLE messages (
     message_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     role VARCHAR(50) NOT NULL CHECK (role IN ('user', 'assistant')),
@@ -27,3 +29,5 @@ CREATE TABLE messages (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     conversation_id BIGINT NOT NULL REFERENCES conversations(conversation_id)
 );
+CREATE INDEX ix_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX ix_messages_conversation_created ON messages(conversation_id, created_at);

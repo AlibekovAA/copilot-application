@@ -4,7 +4,6 @@ import httpx
 from fastapi import status
 
 from app.core import get_settings
-from app.prompts import get_system_prompt
 from app.utils import log
 
 
@@ -17,11 +16,19 @@ class MistralService:
         self.timeout = self.settings.MISTRAL_TIMEOUT
 
         if not self.api_key:
-            log.warning("MISTRAL_API_KEY not configured. Please set it in .env file.")
+            log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
+            raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
+
+        limits = httpx.Limits(
+            max_keepalive_connections=20,
+            max_connections=50,
+            keepalive_expiry=30.0,
+        )
 
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=self.timeout,
+            limits=limits,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
@@ -31,21 +38,16 @@ class MistralService:
     async def generate(
         self,
         prompt: str,
-        domain: str = "general",
+        system_prompt: str,
         history_messages: list[dict[str, str]] | None = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
         **kwargs: Any,
     ) -> str:
-        if not self.api_key:
-            raise ValueError("MISTRAL_API_KEY not configured. Please set it in .env file.")
-
         try:
-            system_prompt = get_system_prompt(domain)
-
-            log.info(
-                f"Generating response with Mistral model: {self.model}, domain: {domain}, prompt length: {len(prompt)},"
-                f"history messages: {len(history_messages) if history_messages else 0}"
+            log.debug(
+                f"Generating with model: {self.model}, "
+                f"prompt: {len(prompt)} chars, history: {len(history_messages) if history_messages else 0}"
             )
 
             messages = [{"role": "system", "content": system_prompt}]
@@ -66,7 +68,11 @@ class MistralService:
             response = await self.client.post("/chat/completions", json=payload)
             response.raise_for_status()
 
-            data = response.json()
+            try:
+                data = response.json()
+            except ValueError as e:
+                log.error(f"Failed to parse Mistral API response as JSON: {e}; body={response.text}")
+                raise ValueError("Invalid JSON in response from Mistral AI") from e
             choices = data.get("choices", [])
 
             if not choices:
@@ -79,18 +85,17 @@ class MistralService:
                 log.warning("Empty content in Mistral API response")
                 return "Sorry, unable to generate response."
 
-            log.info(f"Successfully generated response, length: {len(generated_text)}")
-            log.debug(f"Mistral response: {generated_text[:200]}...")
+            log.debug(f"Generated: {len(generated_text)} chars")
 
             return generated_text.strip()
 
         except httpx.TimeoutException as e:
-            log.error(f"Mistral API request timeout: {e}")
+            log.error(f"Mistral API timeout: {e}")
             raise ValueError("Timeout waiting for response from Mistral AI") from e
         except httpx.HTTPStatusError as e:
             error_text = e.response.text
             status_code = e.response.status_code
-            log.error(f"Mistral API HTTP error: {status_code} - {error_text}")
+            log.error(f"Mistral API error: {status_code} - {error_text}")
 
             if status_code == status.HTTP_401_UNAUTHORIZED:
                 raise ValueError("Invalid API key Mistral AI") from e
@@ -112,7 +117,10 @@ class MistralService:
         try:
             payload = {
                 "model": self.model,
-                "messages": [{"role": "user", "content": "test"}],
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "test"},
+                ],
                 "max_tokens": 5,
             }
 
