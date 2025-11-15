@@ -2,7 +2,6 @@
 backend/llm_service/.mypy_cache
 backend/llm_service/.ruff_cache
 backend/llm_service/logs
-backend/go/logs
 backend/llm_service/app/**/__pycache__/
 .idea/
 frontend/node_modules
