@@ -41,7 +41,12 @@ select = [
 ]
 fixable = ["ALL"]
 unfixable = []
-ignore = ["E203", "ERA001", "RUF001"]
+ignore = [
+    "ERA001",
+    "RUF001",
+    "B008",
+    "F821",
+]
 
 [tool.ruff.lint.pylint]
 max-args = 8
@@ -79,6 +84,9 @@ fastapi = "^0.121.1"
 uvicorn = {extras = ["standard"], version = "^0.38.0"}
 pydantic-settings = "^2.12.0"
 httpx = "^0.28.1"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.44"}
+asyncpg = "^0.30.0"
+alembic = "^1.17.1"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

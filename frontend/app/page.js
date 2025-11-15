@@ -8,8 +8,8 @@ import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { generateMockAnswer } from './utils/mockLLM';
 import { ScrollArea } from './components/ui/scroll-area';
+import { History, Plus } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
-import { Plus } from './components/copilot/icons';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
 
@@ -21,10 +21,11 @@ const generateId = () => {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
-const createSession = () => {
+const createSession = (conversationId = null) => {
   const now = new Date().toISOString();
   return {
     id: generateId(),
+    conversationId: conversationId,
     title: 'Новый диалог',
     createdAt: now,
     updatedAt: now,
@@ -33,7 +34,7 @@ const createSession = () => {
 };
 
 export default function Home() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, userId, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);
@@ -72,6 +73,24 @@ export default function Home() {
       return [updatedSession, ...remainingSessions];
     });
   }, []);
+
+  const topicToDomain = {
+    юриспруденция: 'legal',
+    маркетинг: 'marketing',
+    финансы: 'finance',
+    продажи: 'sales',
+    управление: 'management',
+    HR: 'hr',
+  };
+
+  const extractDomainFromQuestion = (question) => {
+    const hashtagMatch = question.match(/^#([^\s]+)/);
+    if (hashtagMatch) {
+      const topic = hashtagMatch[1];
+      return topicToDomain[topic] || 'general';
+    }
+    return 'general';
+  };
 
   const handleSubmitQuestion = async (question, files = []) => {
     if (!question.trim() && files.length === 0) {
@@ -119,19 +138,59 @@ export default function Home() {
         );
       } else {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        const domain = extractDomainFromQuestion(question);
+        const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
+        
+        const currentSession = sessions.find((s) => s.id === sessionId);
+        let conversationId = currentSession?.conversationId;
+        
+        if (!conversationId) {
+          const createResponse = await fetch(
+            `${apiUrl}/conversations?user_id=${userId}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                title: 'Новый диалог',
+                business_context: domain,
+              }),
+            },
+          );
+
+          if (!createResponse.ok) {
+            throw new Error('Failed to create conversation');
+          }
+
+          const createData = await createResponse.json();
+          conversationId = createData.conversation_id;
+          
+          updateSession(sessionId, (session) => ({
+            ...session,
+            conversationId: conversationId,
+          }));
+        }
+
         const response = await fetch(`${apiUrl}/chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            message: question,
-            domain: 'general',
+            user_id: userId,
+            conversation_id: conversationId,
+            message: cleanedQuestion || question,
+            domain: domain,
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.detail || `HTTP error! status: ${response.status}`,
+          );
         }
 
         const data = await response.json();
@@ -285,32 +344,17 @@ export default function Home() {
       <div className={`${styles.blob} ${styles.blob9}`}></div>
 
       <div className={styles.content}>
-        <div className={styles.mainLayout}>
-          <aside className={styles.sidebar}>
-            <div className={styles.sidebarHeader}>
-              <div className={styles.sidebarHeaderContent}>
+        <header className={styles.header}>
+          <div className={styles.headerContent}>
+            <div className={styles.headerLeft}>
+              <div className={styles.headerIcon}>
+                <Logo className="h-6 w-6" />
               </div>
-              <button
-                type="button"
-                onClick={handleCreateNewSession}
-                className={styles.sidebarNewButton}
-              >
-                <Plus className={styles.iconSmall} />
-                Новый диалог
-              </button>
+              <div className={styles.headerText}>
+                <h1>Alpha Copilot</h1>
+              </div>
             </div>
-            <div className={styles.sidebarContent}>
-              <SessionList
-                sessions={sessionSummaries}
-                activeSessionId={activeSessionId}
-                onSelectSession={handleSelectSession}
-                onDeleteSession={handleDeleteSession}
-              />
-            </div>
-          </aside>
-
-          <main className={styles.mainArea}>
-            <div className={styles.mainAreaHeader}>
+            <div className={styles.headerRight}>
               <div className={styles.headerMenu}>
                 <button
                   type="button"
@@ -351,36 +395,66 @@ export default function Home() {
                 )}
               </div>
             </div>
+          </div>
+        </header>
+
+        <div className={styles.mainLayout}>
+          <aside className={styles.sidebar}>
+            <div className={styles.sidebarHeader}>
+              <div className={styles.sidebarHeaderContent}>
+                <History className="h-5 w-5" />
+                <h2>Диалоги</h2>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateNewSession}
+                className={styles.sidebarNewButton}
+              >
+                <Plus className="h-4 w-4" />
+                Новый диалог
+              </button>
+            </div>
+            <div className={styles.sidebarContent}>
+              <SessionList
+                sessions={sessionSummaries}
+                activeSessionId={activeSessionId}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+              />
+            </div>
+          </aside>
+
+          <main className={styles.mainArea}>
             <ScrollArea className={styles.answerArea}>
               <div className={styles.answerContent}>
-                <div className={styles.conversationWrapper}>
-                  {activeSession && activeSession.messages.length > 0 ? (
-                    <ConversationView
-                      messages={activeSession.messages}
-                      typingState={typingState}
-                      onTypingComplete={handleTypingComplete}
-                    />
-                  ) : (
-                    <div className={styles.emptyState}>
-                      <div className={styles.emptyStateIcon}>
-                        <Logo className={styles.iconXLarge} />
-                      </div>
-                      <h2>Добро пожаловать в Business Copilot</h2>
-                      <p>
-                        Задайте любой бизнес-вопрос и получите качественный ответ.
-                      </p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className={styles.questionPanelContent}>
-                  <QuestionPanel
-                    onSubmit={handleSubmitQuestion}
-                    isLoading={isLoadingAnswer}
+                {activeSession && activeSession.messages.length > 0 ? (
+                  <ConversationView
+                    messages={activeSession.messages}
+                    typingState={typingState}
+                    onTypingComplete={handleTypingComplete}
                   />
-                </div>
+                ) : (
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyStateIcon}>
+                      <Logo className="h-10 w-10" />
+                    </div>
+                    <h2>Добро пожаловать в Business Copilot</h2>
+                    <p>
+                      Задайте любой бизнес-вопрос и получите качественный ответ.
+          </p>
+        </div>
+                )}
               </div>
             </ScrollArea>
+
+            <div className={styles.questionPanel}>
+              <div className={styles.questionPanelContent}>
+                <QuestionPanel
+                  onSubmit={handleSubmitQuestion}
+                  isLoading={isLoadingAnswer}
+                />
+              </div>
+            </div>
           </main>
         </div>
       </div>
