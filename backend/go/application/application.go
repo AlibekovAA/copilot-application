@@ -36,8 +36,11 @@ func (app *Application) Configure(ctx context.Context, logger *logger.Logger, cf
 
 	db, err := database.OpenDB(&cfg.Database)
 	if err != nil {
+		app.logger.Errorf("error %v", err)
 		return err
 	}
+
+	app.logger.Errorf("erdsdssdsdror %v %v", cfg, err)
 
 	app.DB = db
 	app.Addr = cfg.Addr

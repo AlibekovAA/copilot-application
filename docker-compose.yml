@@ -2,6 +2,7 @@ include:
   - db/db.yml
   - backend/llm_service/python.yml
   - frontend/frontend.yml
+  - backend/go/go.yml
 
 volumes:
   data:

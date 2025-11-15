@@ -1,0 +1,21 @@
+2025/11/14 21:49:54 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup postgres_db on 8.8.8.8:53: no such host
+2025/11/14 21:55:39 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup postgres_db on 8.8.8.8:53: no such host
+2025/11/14 22:02:33 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup lfa-db on 8.8.8.8:53: no such host
+2025/11/14 22:03:04 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup alfa-db on 8.8.8.8:53: no such host
+2025/11/14 22:03:33 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup postgres_db on 8.8.8.8:53: no such host
+2025/11/14 22:03:35 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup postgres_db on 8.8.8.8:53: no such host
+2025/11/14 22:04:15 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup db on 8.8.8.8:53: no such host
+2025/11/14 22:05:06 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup alfa-db on 8.8.8.8:53: no such host
+2025/11/14 22:05:15 application.go:43: [ERROR] error <nil>
+2025/11/14 22:05:17 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup alfa-db on 8.8.8.8:53: no such host
+2025/11/14 22:07:42 application.go:43: [ERROR] error <nil>
+2025/11/14 22:07:52 application.go:43: [ERROR] erdsdssdsdror <nil>
+2025/11/14 22:08:01 application.go:43: [ERROR] erdsdssdsdror <nil>
+2025/11/14 22:08:24 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:postgres@sd:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:09:01 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:postgres@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:10:21 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:postgres@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:13:45 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:password@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:14:20 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:password@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:14:37 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:password@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>
+2025/11/14 22:14:40 handlers.go:80: [ERROR] Registration DB error: dial tcp: lookup postgres_db on 8.8.8.8:53: no such host
+2025/11/14 22:20:35 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:password@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>

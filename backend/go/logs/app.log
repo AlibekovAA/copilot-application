@@ -7,3 +7,5 @@
 2025/11/13 20:22:43 main.go:33: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
 2025/11/13 20:24:21 main.go:31: [INFO] cfg &{LogLevel:1 LogDir:./logs Database:{URI:} Addr::8080 JWTSecret:}
 2025/11/13 20:24:21 main.go:33: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/14 21:47:07 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
+2025/11/14 21:47:32 main.go:32: [CRITICAL] Failed to configure application: JWT_SECRET must not be empty
