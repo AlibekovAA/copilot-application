@@ -4,6 +4,7 @@ import { Card } from '../ui/card';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Copy, Check } from './icons';
+import styles from './AnswerDisplay.module.css';
 
 export function AnswerDisplay({ 
   question, 
@@ -40,47 +41,47 @@ export function AnswerDisplay({
   if (!question) return null;
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6 border-gray-700 bg-[rgba(20,20,20,0.8)] backdrop-blur-sm">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback className="bg-gray-700 text-gray-300">Вы</AvatarFallback>
+    <div className={styles.container}>
+      <Card className={styles.card}>
+        <div className={styles.cardContent}>
+          <Avatar className={styles.avatar}>
+            <AvatarFallback className={styles.avatarFallback}>Вы</AvatarFallback>
           </Avatar>
-          <div className="flex-1 space-y-2">
-            <p className="text-[#9933ff] font-medium">Ваш вопрос</p>
-            <p className="text-gray-200">{question}</p>
+          <div className={styles.content}>
+            <p className={styles.label}>Ваш вопрос</p>
+            <p className={styles.questionText}>{question}</p>
           </div>
         </div>
       </Card>
 
-      <Card className="p-6 border-gray-700 bg-[rgba(20,20,20,0.8)] backdrop-blur-sm">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback className="bg-[#9933ff] text-white">
+      <Card className={styles.card}>
+        <div className={styles.cardContent}>
+          <Avatar className={styles.avatar}>
+            <AvatarFallback className={styles.avatarFallbackAI}>
               AI
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 space-y-3">
-            <p className="text-[#9933ff] font-medium">Ответ</p>
-            <div className="prose prose-slate max-w-none">
-              <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">{displayedAnswer}</p>
-              {isTyping && <span className="inline-block w-2 h-4 bg-[#9933ff] animate-pulse ml-1" />}
+          <div className={styles.contentAI}>
+            <p className={styles.label}>Ответ</p>
+            <div>
+              <p className={styles.answerText}>{displayedAnswer}</p>
+              {isTyping && <span className={styles.typingIndicator} />}
             </div>
             {!isTyping && answer && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleCopy}
-                className="gap-2 text-[#9933ff] hover:text-[#8822ee] hover:bg-[#9933ff]/10"
+                className={styles.copyButton}
               >
                 {copied ? (
                   <>
-                    <Check className="h-4 w-4" />
+                    <Check className={styles.copyIcon} />
                     Скопировано!
                   </>
                 ) : (
                   <>
-                    <Copy className="h-4 w-4" />
+                    <Copy className={styles.copyIcon} />
                     Копировать ответ
                   </>
                 )}

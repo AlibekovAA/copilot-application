@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { cn } from './utils';
+import styles from './toggle.module.css';
 
 export function Toggle({ checked, onChange, label, className, disabled }) {
   const handleClick = () => {
@@ -11,9 +12,9 @@ export function Toggle({ checked, onChange, label, className, disabled }) {
   };
 
   return (
-    <div className={cn('flex items-center justify-between gap-3', className)}>
+    <div className={cn(styles.toggleContainer, className)}>
       {label && (
-        <span className="text-sm font-medium text-[var(--app-text-primary)]">
+        <span className={styles.toggleLabel}>
           {label}
         </span>
       )}
@@ -24,16 +25,14 @@ export function Toggle({ checked, onChange, label, className, disabled }) {
         onClick={handleClick}
         disabled={disabled}
         className={cn(
-          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--app-accent-color)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-          checked
-            ? 'bg-[var(--app-accent-color)]'
-            : 'bg-gray-500'
+          styles.toggleButton,
+          checked ? styles.toggleButtonChecked : styles.toggleButtonUnchecked
         )}
       >
         <span
           className={cn(
-            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ease-in-out',
-            checked ? 'translate-x-6' : 'translate-x-1'
+            styles.toggleThumb,
+            checked ? styles.toggleThumbChecked : styles.toggleThumbUnchecked
           )}
         />
       </button>

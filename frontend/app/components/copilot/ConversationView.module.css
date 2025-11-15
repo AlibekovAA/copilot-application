@@ -1,16 +1,37 @@
 .conversationList {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 1.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
 }
 
 .card {
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 1rem;
   border: 1px solid var(--app-card-border);
   background: var(--app-card-bg);
   backdrop-filter: blur(12px);
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 90%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cardUser {
+  background: var(--app-card-bg);
+}
+
+.cardLeft {
+  align-self: flex-start;
+  margin-right: auto;
+}
+
+.cardRight {
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .cardAssistant {
@@ -19,59 +40,45 @@
   box-shadow: 0 16px 40px -24px rgba(153, 51, 255, 0.45);
 }
 
-.persona {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 9999px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: white;
-  background: linear-gradient(135deg, #9933ff, #ef3124);
-}
-
 :global(.theme-light) .cardAssistant {
   border-color: rgba(239, 49, 36, 0.45);
   box-shadow: 0 16px 40px -24px rgba(239, 49, 36, 0.45);
 }
 
-:global(.theme-light) .persona {
-  background: linear-gradient(135deg, #ef3124, #ff6b35);
-}
-
-.personaUser {
-  background: linear-gradient(135deg, rgba(148, 163, 184, 0.5), rgba(71, 85, 105, 0.7));
-  color: #0f172a;
-}
-
 .labelRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
 }
+
 
 .label {
   font-weight: 600;
   color: var(--app-accent-color);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
-.timestamp {
-  color: var(--app-text-secondary);
-  font-size: 0.75rem;
-  white-space: nowrap;
+.messageTextWrapper {
+  position: relative;
+  margin-top: 0.5rem;
+  width: 100%;
 }
+
 
 .messageText {
-  margin-top: 0.75rem;
-  font-size: 0.95rem;
-  line-height: 1.65;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: var(--app-text-primary);
   white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  margin: 0;
+  padding-right: 2.5rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }
+
 
 .typingCaret {
   display: inline-block;
@@ -83,18 +90,22 @@
 }
 
 .copyButton {
-  margin-top: 1rem;
+  position: absolute;
+  top: 0;
+  right: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 9999px;
-  padding: 0.45rem 0.85rem;
+  padding: 0;
   border: none;
   background: rgba(153, 51, 255, 0.12);
   color: var(--app-accent-color);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .copyButton:hover {
@@ -122,4 +133,19 @@
   50% {
     opacity: 1;
   }
+}
+
+
+.messageContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+
+.copyIcon {
+  width: 1rem;
+  height: 1rem;
 }
