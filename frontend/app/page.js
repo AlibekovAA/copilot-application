@@ -8,7 +8,7 @@ import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { generateMockAnswer } from './utils/mockLLM';
 import { ScrollArea } from './components/ui/scroll-area';
-import { History, Plus } from './components/copilot/icons';
+import { Plus } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
 import { Toggle } from './components/ui/toggle';
 import styles from './page.module.css';
@@ -344,73 +344,58 @@ export default function Home() {
       <div className={`${styles.blob} ${styles.blob9}`}></div>
 
       <div className={styles.content}>
-        <header className={styles.header}>
-          <div className={styles.headerContent}>
-            <div className={styles.headerLeft}>
-              <div className={styles.headerIcon}>
-                <Logo className="h-6 w-6" />
-              </div>
-              <div className={styles.headerText}>
-                <h1>Alpha Copilot</h1>
-              </div>
-            </div>
-            <div className={styles.headerRight}>
-              <div className={styles.headerMenu}>
+        <div className={styles.mainAreaHeader}>
+          <div className={styles.headerMenu}>
+            <button
+              type="button"
+              onClick={toggleHeaderMenu}
+              className={styles.headerUserButton}
+              aria-haspopup="true"
+              aria-expanded={isHeaderMenuOpen}
+            >
+              <span className={styles.headerUserAvatar}>AV</span>
+              <span className={styles.headerUserCaret} aria-hidden="true" />
+            </button>
+
+            {isHeaderMenuOpen && (
+              <div className={styles.headerDropdown} role="menu">
+                <div className={styles.headerDropdownHeader}>
+                  <span className={styles.headerDropdownTitle}>Профиль</span>
+                  <p className={styles.headerDropdownSubtitle}>user@example.com</p>
+                </div>
+                <div className={styles.headerDropdownItem} role="menuitem">
+                  <Toggle
+                    checked={theme === 'light'}
+                    onChange={handleHeaderThemeToggle}
+                    label="Сменить тему"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={toggleHeaderMenu}
-                  className={styles.headerUserButton}
-                  aria-haspopup="true"
-                  aria-expanded={isHeaderMenuOpen}
+                  onClick={() => {
+                    closeHeaderMenu();
+                    logout();
+                  }}
+                  className={styles.headerDropdownItemDestructive}
+                  role="menuitem"
                 >
-                  <span className={styles.headerUserAvatar}>AV</span>
-                  <span className={styles.headerUserCaret} aria-hidden="true" />
+                  Выйти
                 </button>
-
-                {isHeaderMenuOpen && (
-                  <div className={styles.headerDropdown} role="menu">
-                    <div className={styles.headerDropdownHeader}>
-                      <span className={styles.headerDropdownTitle}>Профиль</span>
-                      <p className={styles.headerDropdownSubtitle}>user@example.com</p>
-                    </div>
-                    <div className={styles.headerDropdownItem} role="menuitem">
-                      <Toggle
-                        checked={theme === 'light'}
-                        onChange={handleHeaderThemeToggle}
-                        label="Сменить тему"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        closeHeaderMenu();
-                        logout();
-                      }}
-                      className={styles.headerDropdownItemDestructive}
-                      role="menuitem"
-                    >
-                      Выйти
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
           </div>
-        </header>
-
+        </div>
         <div className={styles.mainLayout}>
           <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
               <div className={styles.sidebarHeaderContent}>
-                <History className="h-5 w-5" />
-                <h2>Диалоги</h2>
               </div>
               <button
                 type="button"
                 onClick={handleCreateNewSession}
                 className={styles.sidebarNewButton}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className={styles.iconSmall} />
                 Новый диалог
               </button>
             </div>
@@ -436,7 +421,7 @@ export default function Home() {
                 ) : (
                   <div className={styles.emptyState}>
                     <div className={styles.emptyStateIcon}>
-                      <Logo className="h-10 w-10" />
+                      <Logo className={styles.iconXLarge} />
                     </div>
                     <h2>Добро пожаловать в Business Copilot</h2>
                     <p>
