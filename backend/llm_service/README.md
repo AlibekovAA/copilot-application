@@ -14,33 +14,62 @@ FastAPI микросервис для обработки текстовых за
 - **Логирование** - структурированные логи с ротацией
 - **Health checks** - автоматический мониторинг состояния
 - **Docker ready** - готов к развертыванию в контейнере
+- **JWT аутентификация** - защита endpoints через Bearer токены
+- **Dependency Injection** - FastAPI Dependencies для чистой архитектуры
+
+## Архитектура
+
+Проект следует принципам **Clean Architecture** и **SOLID**:
+
+- **Слоистая архитектура**: API → Services → Repositories → Models
+- **Dependency Injection**: FastAPI Dependencies для инверсии зависимостей
+- **Repository Pattern**: изоляция логики работы с БД
+- **Service Layer**: бизнес-логика отделена от endpoints
+- **Pydantic Schemas**: валидация и сериализация данных
+- **Async/Await**: полностью асинхронная обработка запросов
 
 ## Структура проекта
 
-| Путь                                        | Описание                      |
-| ------------------------------------------- | ----------------------------- |
-| pyproject.toml                              | Poetry конфигурация           |
-| Dockerfile                                  | Docker образ                  |
-| python.yml                                  | Docker Compose                |
-| app/main.py                                 | Точка входа FastAPI           |
-| app/core/config.py                          | Pydantic Settings             |
-| app/core/database.py                        | SQLAlchemy async              |
-| app/core/events.py                          | Lifecycle hooks               |
-| app/api/router.py                           | Главный роутер                |
-| app/api/endpoints/chat.py                   | POST /chat endpoint           |
-| app/api/endpoints/conversations.py          | GET/POST /conversations       |
-| app/api/endpoints/health.py                 | GET /health endpoint          |
-| app/schemas/chat.py                         | ChatRequest, ChatResponse     |
-| app/schemas/conversation.py                 | Conversation schemas          |
-| app/models/base.py                          | Base класс моделей            |
-| app/services/mistral_service.py             | Клиент Mistral AI API         |
-| app/repositories/message_repository.py      | Repository для сообщений      |
-| app/repositories/conversation_repository.py | Repository для диалогов       |
-| app/models/conversation.py                  | ORM модель диалога            |
-| app/models/message.py                       | ORM модель сообщения          |
-| app/middleware/cors.py                      | CORS настройки                |
-| app/utils/logger.py                         | Структурированное логирование |
-| app/prompts/system_prompts.py               | Системные промпты для доменов |
+| Путь                                        | Описание                            |
+| ------------------------------------------- | ----------------------------------- |
+| pyproject.toml                              | Poetry конфигурация                 |
+| Dockerfile                                  | Multi-stage Docker образ            |
+| python.yml                                  | Docker Compose конфигурация         |
+| .dockerignore                               | Исключения для Docker build         |
+| Makefile                                    | Команды для разработки              |
+| **app/main.py**                             | **Точка входа FastAPI**             |
+| **app/core/**                               | **Ядро приложения**                 |
+| app/core/config.py                          | Pydantic Settings (env vars)        |
+| app/core/database.py                        | SQLAlchemy async engine & session   |
+| app/core/events.py                          | Lifecycle hooks (startup/shutdown)  |
+| **app/api/**                                | **API слой**                        |
+| app/api/router.py                           | Главный API роутер                  |
+| app/api/dependencies.py                     | FastAPI Dependencies (DI)           |
+| app/api/endpoints/chat.py                   | POST /chat endpoint                 |
+| app/api/endpoints/conversations.py          | GET/POST /conversations endpoints   |
+| app/api/endpoints/health.py                 | GET /health endpoint                |
+| **app/schemas/**                            | **Pydantic схемы**                  |
+| app/schemas/chat.py                         | ChatRequest, ChatResponse           |
+| app/schemas/conversation.py                 | Conversation schemas                |
+| **app/models/**                             | **SQLAlchemy ORM модели**           |
+| app/models/base.py                          | Base класс для всех моделей         |
+| app/models/conversation.py                  | ORM модель диалога                  |
+| app/models/message.py                       | ORM модель сообщения                |
+| **app/services/**                           | **Бизнес-логика**                   |
+| app/services/mistral_service.py             | Клиент Mistral AI API               |
+| app/services/conversation_service.py        | Сервис валидации диалогов           |
+| **app/repositories/**                       | **Repository Pattern (Data Layer)** |
+| app/repositories/base.py                    | Базовый репозиторий                 |
+| app/repositories/message_repository.py      | Repository для сообщений            |
+| app/repositories/conversation_repository.py | Repository для диалогов             |
+| **app/middleware/**                         | **Middleware слой**                 |
+| app/middleware/auth.py                      | JWT аутентификация                  |
+| app/middleware/cors.py                      | CORS настройки                      |
+| **app/utils/**                              | **Утилиты**                         |
+| app/utils/logger.py                         | Структурированное логирование       |
+| app/utils/error_handlers.py                 | Централизованная обработка ошибок   |
+| **app/prompts/**                            | **Промпты для AI**                  |
+| app/prompts/system_prompts.py               | Системные промпты для 7 доменов     |
 
 ## Установка и настройка
 

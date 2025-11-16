@@ -26,7 +26,11 @@ class Logger:
         settings = get_settings()
 
         log_dir = Path(settings.LOG_DIR).resolve()
-        log_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            log_dir = Path("/tmp/app_logs")  # noqa: S108
+            log_dir.mkdir(parents=True, exist_ok=True)
 
         self._logger = logging.getLogger("app")
 
