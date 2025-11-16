@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../ui/card';
 import { Copy, Check } from './icons';
 import { cn } from '../ui/utils';
+import { TYPING_INTERVAL_MS } from '../../utils/apiHelpers';
 import styles from './ConversationView.module.css';
 
 const USER_LABEL = 'Вы';
 const ASSISTANT_LABEL = 'AI';
-const TYPING_INTERVAL = 12;
 
 export function ConversationView({ messages, typingState, onTypingComplete }) {
   const bottomRef = useRef(null);
@@ -71,7 +71,7 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
         typingIntervalRef.current = null;
         onTypingComplete();
       }
-    }, TYPING_INTERVAL);
+    }, TYPING_INTERVAL_MS);
 
     return () => {
       if (typingIntervalRef.current) {
@@ -153,7 +153,7 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
           <Card
             key={message.id}
             className={cn(
-              styles.card, 
+              styles.card,
               isAssistant ? styles.cardAssistant : styles.cardUser,
               isAssistant ? styles.cardLeft : styles.cardRight
             )}
@@ -191,4 +191,3 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
     </div>
   );
 }
-

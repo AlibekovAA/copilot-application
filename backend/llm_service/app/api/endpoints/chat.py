@@ -1,50 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.api.dependencies import ConversationRepoDep, MessageRepoDep
+from app.core import get_db
+from app.middleware import get_current_user_id
 from app.prompts import get_system_prompt
-from app.repositories import ConversationRepository, MessageRepository
 from app.schemas import ChatRequest, ChatResponse
+from app.services import ConversationService
 from app.utils import handle_api_error, log
 
 
 router = APIRouter()
 
 
-async def _validate_conversation(
-    conversation_repo: ConversationRepository,
-    conversation_id: int,
-    user_id: int,
-) -> int:
-    conversation = await conversation_repo.get_conversation_by_id(conversation_id, user_id=user_id)
-    if conversation is None:
-        log.error(f"Conversation {conversation_id} not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Conversation {conversation_id} not found. Please create it first.",
-        )
-    return conversation.conversation_id
-
-
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
 async def chat_endpoint(
     request_body: ChatRequest,
     request: Request,
+    conversation_repo: ConversationRepoDep,
+    message_repo: MessageRepoDep,
     db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
 ) -> ChatResponse:
     domain = request_body.domain or "general"
 
     log.info(
-        f"Chat request - user: {request_body.user_id}, conv: {request_body.conversation_id}, "
+        f"Chat request - user: {user_id}, conv: {request_body.conversation_id}, "
         f"domain: {domain}, len: {len(request_body.message)}"
     )
 
     try:
-        message_repo = MessageRepository(db)
-        conversation_repo = ConversationRepository(db)
-
-        actual_conversation_id = await _validate_conversation(
-            conversation_repo, request_body.conversation_id, request_body.user_id
+        conversation_service = ConversationService(conversation_repo)
+        actual_conversation_id = await conversation_service.validate_conversation_access(
+            request_body.conversation_id, user_id
         )
 
         history = await message_repo.get_last_messages(actual_conversation_id, limit=5)

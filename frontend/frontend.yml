@@ -15,6 +15,7 @@ services:
       - app-network
     depends_on:
       - app
+      - backend
     healthcheck:
       test:
         [

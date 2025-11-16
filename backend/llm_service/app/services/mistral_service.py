@@ -7,6 +7,9 @@ from app.core import get_settings
 from app.utils import log
 
 
+DEFAULT_ERROR_RESPONSE = "Sorry, unable to generate response."
+
+
 class MistralService:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -77,13 +80,13 @@ class MistralService:
 
             if not choices:
                 log.warning("Empty choices in Mistral API response")
-                return "Sorry, unable to generate response."
+                return DEFAULT_ERROR_RESPONSE
 
             generated_text: str = str(choices[0].get("message", {}).get("content", ""))
 
             if not generated_text:
                 log.warning("Empty content in Mistral API response")
-                return "Sorry, unable to generate response."
+                return DEFAULT_ERROR_RESPONSE
 
             log.debug(f"Generated: {len(generated_text)} chars")
 

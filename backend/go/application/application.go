@@ -6,7 +6,6 @@ import (
 	"backend/logger"
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -61,12 +60,17 @@ func (app *Application) RegisterHandlers() {
 
 	api.HandleFunc("/profile", app.profileHandler).Methods("GET")
 	api.HandleFunc("/change-password", app.changePasswordHandler).Methods("POST")
-
-	app.Router.Use(corsMiddleware)
 }
 
 func (app *Application) Run(ctx context.Context) {
 	app.RegisterHandlers()
+
+	handler := corsMiddleware(app.Router)
+
+	server := &http.Server{
+		Addr:    app.Addr,
+		Handler: handler,
+	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -74,35 +78,32 @@ func (app *Application) Run(ctx context.Context) {
 	serverErr := make(chan error, 1)
 
 	go func() {
-		log.Printf("Backend is running on  %s", app.Addr)
-		serverErr <- http.ListenAndServe(app.Addr, corsMiddleware(app.Router))
+		app.logger.Infof("Backend is running on %s", app.Addr)
+		serverErr <- server.ListenAndServe()
 	}()
 
 	select {
 	case err := <-serverErr:
 		if err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed start backend: %v", err)
+			app.logger.Fatalf("Failed to start backend: %v", err)
 		}
 	case <-stop:
-		log.Println("Shutting down backend...")
+		app.logger.Info("Shutting down backend...")
 	}
 
-	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	<-shutdownCtx.Done()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		app.logger.Errorf("Server shutdown error: %v", err)
+	}
 
-	log.Println("Backend is terminated correctly")
+	app.logger.Info("Backend terminated correctly")
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
 	allowedOrigins := map[string]bool{
-		"http://localhost":         true,
-		"http://localhost:8080":    true,
-		"http://localhost:8000":    true,
 		"http://frontend_app:3000": true,
-		"http://frontend_app":      true,
-		"http://nginx":             true,
 		"http://localhost:3000":    true,
 	}
 

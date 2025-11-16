@@ -1,4 +1,4 @@
-const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://go-backend:8080';
+import { AUTH_API_URL } from './apiHelpers';
 
 export async function login(email, password) {
   const response = await fetch(`${AUTH_API_URL}/login`, {
@@ -10,7 +10,9 @@ export async function login(email, password) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Ошибка входа' }));
+    const error = await response
+      .json()
+      .catch(() => ({ error: 'Ошибка входа' }));
     throw new Error(error.error || 'Ошибка входа');
   }
 
@@ -28,7 +30,9 @@ export async function register(name, email, password) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Ошибка регистрации' }));
+    const error = await response
+      .json()
+      .catch(() => ({ error: 'Ошибка регистрации' }));
     throw new Error(error.error || 'Ошибка регистрации');
   }
 
@@ -45,7 +49,7 @@ export async function changePassword(oldPassword, newPassword) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       old_password: oldPassword,
@@ -54,10 +58,11 @@ export async function changePassword(oldPassword, newPassword) {
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Ошибка смены пароля' }));
+    const error = await response
+      .json()
+      .catch(() => ({ error: 'Ошибка смены пароля' }));
     throw new Error(error.error || 'Ошибка смены пароля');
   }
 
   return await response.json();
 }
-
