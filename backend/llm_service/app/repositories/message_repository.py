@@ -1,13 +1,10 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Conversation, Message
+from app.models import Message
+from app.repositories.base import BaseRepository
 
 
-class MessageRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
-
+class MessageRepository(BaseRepository):
     async def save_message(
         self,
         conversation_id: int,
@@ -26,37 +23,33 @@ class MessageRepository:
             content_type=content_type,
         )
         self.session.add(message)
-        await self.session.commit()
-        await self.session.refresh(message)
         return message
 
-    async def get_last_messages(self, conversation_id: int, limit: int = 5) -> list[Message]:
+    async def get_last_messages(self, conversation_id: int, limit: int = 5) -> list[dict[str, str]]:
         stmt = (
-            select(Message)
+            select(Message.role, Message.content)
             .where(Message.conversation_id == conversation_id)
             .order_by(Message.created_at.desc())
             .limit(limit)
         )
         result = await self.session.execute(stmt)
-        messages = list(result.scalars().all())
+        messages = [{"role": row.role, "content": row.content} for row in result.all()]
         return list(reversed(messages))
 
-    async def check_if_first_message(self, conversation_id: int) -> bool:
-        stmt = select(Message.message_id).where(Message.conversation_id == conversation_id).limit(1)
-        result = await self.session.execute(stmt)
-        first_message = result.scalar_one_or_none()
-        return first_message is None
-
-    async def get_conversation_domain(self, conversation_id: int) -> str | None:
-        stmt = select(Conversation.business_context).where(Conversation.conversation_id == conversation_id)
-        result = await self.session.execute(stmt)
-        domain = result.scalar_one_or_none()
-        return domain
-
-    async def get_conversation_by_id(self, conversation_id: int, user_id: int) -> Conversation | None:
-        stmt = select(Conversation).where(
-            Conversation.conversation_id == conversation_id,
-            Conversation.user_id == user_id,
+    async def get_all_messages(self, conversation_id: int) -> list[dict[str, str]]:
+        stmt = (
+            select(Message.message_id, Message.role, Message.content, Message.created_at)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.asc())
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        messages = [
+            {
+                "id": row.message_id,
+                "role": row.role,
+                "content": row.content,
+                "timestamp": row.created_at.isoformat(),
+            }
+            for row in result.all()
+        ]
+        return messages

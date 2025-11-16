@@ -1,8 +1,10 @@
-FROM python:3.13-slim
+FROM python:3.13-slim AS base
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y make gcc libc6-dev curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends make gcc libc6-dev curl && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
@@ -14,8 +16,10 @@ RUN --mount=type=cache,target=/root/.cache/pypoetry \
     poetry config virtualenvs.create false && \
     poetry install --no-root --no-interaction --no-ansi --only main
 
-COPY . /app
+COPY app/ /app/app/
+COPY Makefile /app/
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

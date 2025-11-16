@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine  AS base
 
 RUN apk add --no-cache libc6-compat wget && \
     corepack enable && \
@@ -7,9 +7,9 @@ RUN apk add --no-cache libc6-compat wget && \
 FROM base AS deps
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml* ./
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --no-frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app

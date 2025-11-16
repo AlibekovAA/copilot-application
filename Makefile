@@ -1,37 +1,49 @@
 ifeq ($(OS),Windows_NT)
     DOCKER_COMPOSE = docker-compose
-    SET_ENV = set DOCKER_BUILDKIT=1& set COMPOSE_DOCKER_CLI_BUILD=1&
 else
     ifeq ($(shell command -v docker-compose 2> /dev/null),)
         DOCKER_COMPOSE = docker compose
     else
         DOCKER_COMPOSE = docker-compose
     endif
-    SET_ENV = DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1
 endif
 
-.PHONY: format down up reup rebuild help
+.PHONY: format down up reup restart rebuild help
 
 down:
 	@echo "Stopping containers..."
+	$(DOCKER_COMPOSE) down
+	@echo "Done!"
+
+down-volumes:
+	@echo "Stopping containers and removing volumes..."
 	$(DOCKER_COMPOSE) down -v
 	@echo "Done!"
 
 up:
+	@echo "Starting containers..."
+	$(DOCKER_COMPOSE) up
+
+up-build:
 	@echo "Starting containers with build..."
-	$(SET_ENV) $(DOCKER_COMPOSE) up --build
+	$(DOCKER_COMPOSE) up --build
+
+restart:
+	@echo "Restarting containers (keeps volumes and cache)..."
+	$(DOCKER_COMPOSE) restart
+	@echo "Done!"
 
 reup:
-	@echo "Removing containers and volumes..."
-	$(DOCKER_COMPOSE) down -v
+	@echo "Stopping containers (keeping volumes)..."
+	$(DOCKER_COMPOSE) down
 	@echo "Starting containers with build..."
-	$(SET_ENV) $(DOCKER_COMPOSE) up --build
+	$(DOCKER_COMPOSE) up --build
 
 rebuild:
 	@echo "Rebuilding images with no cache..."
-	$(SET_ENV) $(DOCKER_COMPOSE) build --no-cache
+	$(DOCKER_COMPOSE) build --no-cache
 	@echo "Starting containers..."
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up
 
 clean:
 	@echo "Stopping all containers..."
@@ -46,9 +58,12 @@ clean:
 
 help:
 	@echo "Available targets:"
-	@echo "  down    - Stop and remove containers and volumes"
-	@echo "  up      - Start containers with build (uses cache)"
-	@echo "  reup    - Full restart (remove volumes + rebuild with cache)"
-	@echo "  rebuild - Rebuild images without cache (slower, fresh build)"
-	@echo "  clean   - Remove ALL Docker containers, images, and volumes"
-	@echo "  help    - Show this help message"
+	@echo "  up           - Start containers (fast, no build)"
+	@echo "  up-build     - Start containers with build"
+	@echo "  down         - Stop containers (keeps volumes)"
+	@echo "  down-volumes - Stop containers and remove volumes (database will be removed!)"
+	@echo "  restart      - Restart containers (fastest, keeps everything)"
+	@echo "  reup         - Stop + rebuild + start (keeps volumes/database)"
+	@echo "  rebuild      - Full rebuild without cache (slowest)"
+	@echo "  clean        - Remove ALL Docker containers, images, and volumes"
+	@echo "  help         - Show this help message"

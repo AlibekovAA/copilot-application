@@ -41,11 +41,7 @@ export async function changePassword(oldPassword, newPassword) {
     throw new Error('Необходима авторизация');
   }
 
-  const url = `${AUTH_API_URL}/change-password`;
-  console.log('[ChangePassword] Request URL:', url);
-  console.log('[ChangePassword] Token exists:', !!token);
-
-  const response = await fetch(url, {
+  const response = await fetch(`${AUTH_API_URL}/change-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,14 +53,9 @@ export async function changePassword(oldPassword, newPassword) {
     }),
   });
 
-  console.log('[ChangePassword] Response status:', response.status);
-  console.log('[ChangePassword] Response ok:', response.ok);
-
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Ошибка смены пароля' }));
-    console.error('[ChangePassword] Error data:', errorData);
-    const errorMessage = errorData.error || errorData.message || `Ошибка смены пароля (${response.status})`;
-    throw new Error(errorMessage);
+    const error = await response.json().catch(() => ({ error: 'Ошибка смены пароля' }));
+    throw new Error(error.error || 'Ошибка смены пароля');
   }
 
   return await response.json();
