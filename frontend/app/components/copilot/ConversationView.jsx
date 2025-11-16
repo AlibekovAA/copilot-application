@@ -15,6 +15,9 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
   const [animatedText, setAnimatedText] = useState('');
   const [copiedMessageId, setCopiedMessageId] = useState(null);
   const copyTimeoutRef = useRef(null);
+  const typingIntervalRef = useRef(null);
+  const currentTypingMessageIdRef = useRef(null);
+  const currentIndexRef = useRef(0);
   const typingMessage = useMemo(
     () => (typingState.messageId ? messages.find(message => message.id === typingState.messageId) : null),
     [messages, typingState.messageId],
@@ -25,26 +28,58 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
   }, [messages.length, animatedText, typingState.messageId]);
 
   useEffect(() => {
-    if (!typingState.messageId || !typingState.fullText || !typingMessage) {
+    if (!typingState.messageId || !typingState.fullText) {
+      if (typingIntervalRef.current) {
+        window.clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
+      currentTypingMessageIdRef.current = null;
+      currentIndexRef.current = 0;
       setAnimatedText('');
       return;
     }
 
-    setAnimatedText('');
-    let index = 0;
-    const interval = window.setInterval(() => {
-      index += 1;
-      setAnimatedText(typingState.fullText.slice(0, index));
-      if (index >= typingState.fullText.length) {
-        window.clearInterval(interval);
+    if (currentTypingMessageIdRef.current === typingState.messageId && typingIntervalRef.current) {
+      return;
+    }
+
+    if (typingIntervalRef.current) {
+      window.clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+
+    const startIndex = currentTypingMessageIdRef.current === typingState.messageId 
+      ? currentIndexRef.current 
+      : 0;
+    
+    currentTypingMessageIdRef.current = typingState.messageId;
+    currentIndexRef.current = startIndex;
+    
+    if (startIndex >= typingState.fullText.length) {
+      setAnimatedText(typingState.fullText);
+      onTypingComplete();
+      return;
+    }
+
+    setAnimatedText(typingState.fullText.slice(0, startIndex));
+    
+    typingIntervalRef.current = window.setInterval(() => {
+      currentIndexRef.current += 1;
+      setAnimatedText(typingState.fullText.slice(0, currentIndexRef.current));
+      if (currentIndexRef.current >= typingState.fullText.length) {
+        window.clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
         onTypingComplete();
       }
     }, TYPING_INTERVAL);
 
     return () => {
-      window.clearInterval(interval);
+      if (typingIntervalRef.current) {
+        window.clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
     };
-  }, [typingMessage, typingState.fullText, typingState.messageId, onTypingComplete]);
+  }, [typingState.messageId, typingState.fullText, onTypingComplete]);
 
   useEffect(() => {
     return () => {

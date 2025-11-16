@@ -77,7 +77,6 @@ export function QuestionPanel({ onSubmit, isLoading }) {
       if (questionWithoutHashtags !== newValue) {
         setQuestion(questionWithoutHashtags);
       }
-      setActiveTopics([]);
     }
   }, [updateTextareaHeight]);
 

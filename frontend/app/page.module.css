@@ -717,6 +717,15 @@
   font-size: 0.875rem !important;
   padding: 0.25rem 0.5rem !important;
   box-sizing: border-box;
+  color: var(--foreground) !important;
+}
+
+:global(.theme-dark) .modalCard :global(.input) {
+  color: #ffffff !important;
+}
+
+:global(.theme-light) .modalCard :global(.input) {
+  color: #000000 !important;
 }
 
 .modalCard form > div {

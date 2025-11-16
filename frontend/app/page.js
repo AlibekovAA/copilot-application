@@ -27,7 +27,7 @@ import { changePassword as apiChangePassword } from './utils/authApi';
 import styles from './page.module.css';
 
 export default function Home() {
-  const { isAuthenticated, isLoading, userId, logout } = useAuth();
+  const { isAuthenticated, isLoading, userId, userEmail, logout } = useAuth();
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('auth_token');
@@ -429,7 +429,7 @@ export default function Home() {
                 <div className={styles.headerDropdownHeader}>
                   <span className={styles.headerDropdownTitle}>Профиль</span>
                   <p className={styles.headerDropdownSubtitle}>
-                    user@example.com
+                    {userEmail || 'user@example.com'}
                   </p>
                 </div>
                 <div className={styles.headerDropdownItem} role="menuitem">
@@ -553,7 +553,7 @@ export default function Home() {
                       value={changePasswordData.oldPassword}
                       onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box', color: theme === 'light' ? '#000000' : '#ffffff' }}
                     />
                     <button
                       type="button"
@@ -574,7 +574,7 @@ export default function Home() {
                       value={changePasswordData.newPassword}
                       onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box', color: theme === 'light' ? '#000000' : '#ffffff' }}
                     />
                     <button
                       type="button"
@@ -595,7 +595,7 @@ export default function Home() {
                       value={changePasswordData.confirmPassword}
                       onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box', color: theme === 'light' ? '#000000' : '#ffffff' }}
                     />
                     <button
                       type="button"
