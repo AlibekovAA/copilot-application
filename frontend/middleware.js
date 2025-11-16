@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-
-const validRoutes = ['/', '/auth'];
+import { VALID_ROUTES } from './app/utils/apiHelpers';
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -16,7 +15,7 @@ export function middleware(request) {
 
   const authToken = request.cookies.get('auth_token')?.value;
 
-  if (!validRoutes.includes(pathname)) {
+  if (!VALID_ROUTES.includes(pathname)) {
     if (authToken) {
       return NextResponse.redirect(new URL('/', request.url));
     } else {

@@ -1,21 +1,22 @@
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "./context/AuthContext";
-import { ThemeProvider } from "./context/ThemeContext";
+import { Geist, Geist_Mono } from 'next/font/google';
+import './globals.css';
+import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { ToastProvider } from './components/ui/toast';
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
 });
 
 export const metadata = {
-  title: "Alpha Frontend business copilot",
-  description: "Frontend for Alpha Business Copilot",
+  title: 'Alpha Frontend business copilot',
+  description: 'Frontend for Alpha Business Copilot',
 };
 
 export default function RootLayout({ children }) {
@@ -26,7 +27,7 @@ export default function RootLayout({ children }) {
       >
         <ThemeProvider>
           <AuthProvider>
-        {children}
+            <ToastProvider>{children}</ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

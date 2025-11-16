@@ -52,6 +52,18 @@ func (app *Application) Configure(ctx context.Context, logger *logger.Logger, cf
 	return nil
 }
 
+func (app *Application) Shutdown() error {
+	if app.DB != nil {
+		app.logger.Info("Closing database connection...")
+		if err := app.DB.Close(); err != nil {
+			app.logger.Errorf("Error closing database: %v", err)
+			return err
+		}
+		app.logger.Info("Database connection closed successfully")
+	}
+	return nil
+}
+
 func (app *Application) RegisterHandlers() {
 	app.Router.HandleFunc("/health", app.healthHandler).Methods("GET")
 	app.Router.HandleFunc("/register", app.registerHandler).Methods("POST")
@@ -98,6 +110,10 @@ func (app *Application) Run(ctx context.Context) {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		app.logger.Errorf("Server shutdown error: %v", err)
+	}
+
+	if err := app.Shutdown(); err != nil {
+		app.logger.Errorf("Application shutdown error: %v", err)
 	}
 
 	app.logger.Info("Backend terminated correctly")

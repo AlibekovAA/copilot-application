@@ -43,8 +43,8 @@ class MistralService:
         prompt: str,
         system_prompt: str,
         history_messages: list[dict[str, str]] | None = None,
-        temperature: float = 0.7,
-        max_tokens: int = 2000,
+        temperature: float = 0.5,
+        max_tokens: int = 5000,
         **kwargs: Any,
     ) -> str:
         try:
@@ -58,7 +58,8 @@ class MistralService:
             if history_messages:
                 messages.extend(history_messages)
 
-            messages.append({"role": "user", "content": prompt})
+            current_question = f"[ТЕКУЩИЙ ВОПРОС - ОТВЕТЬ ТОЛЬКО НА НЕГО]\n{prompt}"
+            messages.append({"role": "user", "content": current_question})
 
             payload = {
                 "model": self.model,

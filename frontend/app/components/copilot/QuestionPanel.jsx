@@ -4,8 +4,8 @@ import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
 import { Send, Paperclip, X } from './icons';
 import { TopicButtons } from './TopicButtons';
-import { validateNewFiles, formatFileSize, MAX_FILES } from '../../utils/fileValidation';
-import { extractTopicsFromHashtags, removeHashtagsFromText } from '../../constants/topics';
+import { validateNewFiles, formatFileSize, MAX_FILES, ALLOWED_FILE_TYPES } from '../../utils/fileValidation';
+import { removeHashtagsFromText } from '../../constants/topics';
 import styles from './QuestionPanel.module.css';
 
 export function QuestionPanel({ onSubmit, isLoading }) {
@@ -16,7 +16,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const isUpdatingTopicRef = useRef(false);
-  
+
   const updateTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -57,10 +57,10 @@ export function QuestionPanel({ onSubmit, isLoading }) {
   const handleSelectTopic = useCallback((topics) => {
     isUpdatingTopicRef.current = true;
     setActiveTopics(topics);
-    
+
     const questionWithoutHashtags = removeHashtagsFromText(question);
       setQuestion(questionWithoutHashtags);
-    
+
     setTimeout(() => {
       isUpdatingTopicRef.current = false;
     }, 0);
@@ -68,7 +68,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
 
   const handleQuestionChange = useCallback((e) => {
     const newValue = e.target.value;
-    
+
     updateTextareaHeight();
 
     if (!isUpdatingTopicRef.current) {
@@ -86,7 +86,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     }
 
     const validation = validateNewFiles(selectedFiles, files);
-    
+
     if (!validation.valid) {
       setValidationError(validation.error);
       if (fileInputRef.current) {
@@ -97,7 +97,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
 
     setValidationError(null);
     setFiles([...files, ...Array.from(selectedFiles)]);
-    
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -128,7 +128,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".pdf,.docx,.txt,.png,.jpg,.doc,.jpeg"
+          accept={ALLOWED_FILE_TYPES.join(',')}
           onChange={handleFileSelect}
           className={styles.hidden}
           disabled={isLoading}
@@ -142,10 +142,10 @@ export function QuestionPanel({ onSubmit, isLoading }) {
         >
           <Paperclip className={styles.attachIcon} />
         </button>
-        
+
         <div className={styles.buttonsInside}>
           <div className={styles.footerLeft}>
-            <TopicButtons 
+            <TopicButtons
               onSelectTopic={handleSelectTopic}
               isLoading={isLoading}
               activeTopics={activeTopics}
@@ -161,7 +161,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
           </Button>
         </div>
       </div>
-      
+
       <div className={styles.filesSection}>
 
         {validationError && (

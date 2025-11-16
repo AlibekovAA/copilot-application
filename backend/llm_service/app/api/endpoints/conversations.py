@@ -122,3 +122,32 @@ async def get_conversation_messages(
         raise
     except Exception as e:
         raise handle_api_error(e, "fetch conversation messages") from e
+
+
+@router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conversation(
+    conversation_id: int,
+    conversation_repo: ConversationRepoDep,
+    db: AsyncSession = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+) -> None:
+    log.debug(f"Deleting conversation {conversation_id} for user {user_id}")
+
+    try:
+        deleted = await conversation_repo.delete_conversation(conversation_id, user_id)
+
+        if not deleted:
+            log.error(f"Conversation {conversation_id} not found for user {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        await db.commit()
+        log.info(f"Deleted conversation {conversation_id}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise handle_api_error(e, "delete conversation") from e

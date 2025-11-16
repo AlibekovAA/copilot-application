@@ -1,4 +1,4 @@
-import { AUTH_API_URL } from './apiHelpers';
+import { AUTH_API_URL, getAuthToken } from './apiHelpers';
 
 export async function login(email, password) {
   const response = await fetch(`${AUTH_API_URL}/login`, {
@@ -47,12 +47,12 @@ export async function register(name, email, password) {
 }
 
 export async function changePassword(oldPassword, newPassword) {
-  const token = localStorage.getItem('auth_token');
+  const token = getAuthToken();
   if (!token) {
     throw new Error('Необходима авторизация');
   }
 
-  const response = await fetch(`${AUTH_API_URL}/change-password`, {
+  const response = await fetch(`${AUTH_API_URL}/api/change-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

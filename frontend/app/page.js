@@ -7,7 +7,6 @@ import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
-import { generateMockAnswer } from './utils/mockLLM';
 import {
   createSession,
   createUserMessage,
@@ -25,12 +24,14 @@ import { Label } from './components/ui/label';
 import { Button } from './components/ui/button';
 import { changePassword as apiChangePassword } from './utils/authApi';
 import { API_URL, getAuthHeaders } from './utils/apiHelpers';
+import { useToast } from './components/ui/toast';
 import styles from './page.module.css';
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, userEmail, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const toast = useToast();
   const initialSession = useMemo(() => createSession(), []);
   const [sessions, setSessions] = useState([initialSession]);
   const [activeSessionId, setActiveSessionId] = useState(initialSession.id);
@@ -52,10 +53,28 @@ export default function Home() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
+  const headerMenuRef = useRef(null);
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        isHeaderMenuOpen &&
+        headerMenuRef.current &&
+        !headerMenuRef.current.contains(event.target)
+      ) {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isHeaderMenuOpen]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -98,6 +117,46 @@ export default function Home() {
         console.log('[History] Setting sessions:', loadedSessions);
         setSessions(loadedSessions);
         setActiveSessionId(loadedSessions[0].id);
+
+        const firstConversation = loadedSessions[0];
+        if (firstConversation.conversationId) {
+          try {
+            console.log(
+              '[History] Loading messages for first conversation:',
+              firstConversation.conversationId,
+            );
+            const messagesResponse = await fetch(
+              `${API_URL}/conversations/${firstConversation.conversationId}/messages`,
+              {
+                headers: getAuthHeaders(),
+              },
+            );
+
+            if (messagesResponse.ok) {
+              const messagesData = await messagesResponse.json();
+              console.log(
+                '[History] Loaded messages for first conversation:',
+                messagesData,
+              );
+
+              setSessions((prevSessions) => {
+                const updated = [...prevSessions];
+                if (updated[0]) {
+                  updated[0] = {
+                    ...updated[0],
+                    messages: messagesData.messages || [],
+                  };
+                }
+                return updated;
+              });
+            }
+          } catch (error) {
+            console.error(
+              '[History] Error loading messages for first conversation:',
+              error,
+            );
+          }
+        }
       } else {
         console.log('[History] No conversations found in database');
       }
@@ -161,63 +220,70 @@ export default function Home() {
     try {
       let answer;
 
-      if (files.length > 0) {
-        answer = await generateMockAnswer(
-          question || `Обработка ${files.length} файлов`,
-          'business',
-        );
-      } else {
-        const domain = selectedTopic
-          ? getDomainFromTopic(selectedTopic)
-          : 'general';
-        const cleanedQuestion = question.trim();
+      const domain = selectedTopic
+        ? getDomainFromTopic(selectedTopic)
+        : 'general';
+      const cleanedQuestion = question.trim();
 
-        const currentSession = sessions.find((s) => s.id === sessionId);
-        let conversationId = currentSession?.conversationId;
+      const currentSession = sessions.find((s) => s.id === sessionId);
+      let conversationId = currentSession?.conversationId;
 
-        if (!conversationId) {
-          const createResponse = await fetch(`${API_URL}/conversations`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              title: 'Новый диалог',
-              business_context: domain,
-            }),
-          });
+      if (!conversationId) {
+        const conversationTitle = getSessionTitle(question, files);
 
-          if (!createResponse.ok) {
-            throw new Error('Failed to create conversation');
-          }
-
-          const createData = await createResponse.json();
-          conversationId = createData.conversation_id;
-
-          updateSession(sessionId, (session) => ({
-            ...session,
-            conversationId: conversationId,
-          }));
-        }
-
-        const response = await fetch(`${API_URL}/chat`, {
+        const createResponse = await fetch(`${API_URL}/conversations`, {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({
-            conversation_id: conversationId,
-            message: cleanedQuestion || question,
-            domain: domain,
+            title: conversationTitle,
+            business_context: domain,
           }),
         });
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(
-            errorData.detail || `HTTP error! status: ${response.status}`,
-          );
+        if (!createResponse.ok) {
+          throw new Error('Failed to create conversation');
         }
 
-        const data = await response.json();
-        answer = data.response || 'Не удалось получить ответ';
+        const createData = await createResponse.json();
+        conversationId = createData.conversation_id;
+
+        updateSession(sessionId, (session) => ({
+          ...session,
+          conversationId: conversationId,
+        }));
       }
+
+      const formData = new FormData();
+      formData.append('conversation_id', conversationId.toString());
+      formData.append('message', cleanedQuestion || question);
+      formData.append('domain', domain);
+
+      if (files.length > 0) {
+        files.forEach((file) => {
+          formData.append('files', file);
+        });
+      }
+
+      const authHeaders = getAuthHeaders();
+      const headers = {
+        Authorization: authHeaders.Authorization,
+      };
+
+      const response = await fetch(`${API_URL}/chat`, {
+        method: 'POST',
+        headers: headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.detail || `HTTP error! status: ${response.status}`,
+        );
+      }
+
+      const data = await response.json();
+      answer = data.response || 'Не удалось получить ответ';
 
       const assistantMessage = createAssistantMessage(answer);
 
@@ -303,36 +369,71 @@ export default function Home() {
     }
   };
 
-  const handleDeleteSession = useCallback((sessionId) => {
-    setSessions((prevSessions) => {
-      if (prevSessions.length === 0) {
-        return prevSessions;
+  const handleDeleteSession = useCallback(
+    async (sessionId) => {
+      const session = sessions.find((s) => s.id === sessionId);
+
+      if (session?.conversationId) {
+        try {
+          const response = await fetch(
+            `${API_URL}/conversations/${session.conversationId}`,
+            {
+              method: 'DELETE',
+              headers: getAuthHeaders(),
+            },
+          );
+
+          if (!response.ok) {
+            console.error(
+              '[Delete] Failed to delete conversation:',
+              response.status,
+            );
+            toast.error('Не удалось удалить чат');
+            return;
+          }
+
+          console.log(
+            '[Delete] Successfully deleted conversation:',
+            session.conversationId,
+          );
+        } catch (error) {
+          console.error('[Delete] Error deleting conversation:', error);
+          toast.error('Ошибка при удалении чата');
+          return;
+        }
       }
 
-      const remainingSessions = prevSessions.filter(
-        (session) => session.id !== sessionId,
-      );
+      setSessions((prevSessions) => {
+        if (prevSessions.length === 0) {
+          return prevSessions;
+        }
 
-      if (remainingSessions.length === prevSessions.length) {
-        return prevSessions;
-      }
+        const remainingSessions = prevSessions.filter(
+          (session) => session.id !== sessionId,
+        );
 
-      if (remainingSessions.length === 0) {
-        const newSession = createSession();
-        setActiveSessionId(newSession.id);
-        setTypingState({ messageId: null, fullText: '' });
-        return [newSession];
-      }
+        if (remainingSessions.length === prevSessions.length) {
+          return prevSessions;
+        }
 
-      if (sessionId === activeSessionIdRef.current) {
-        const nextActiveId = remainingSessions[0].id;
-        setActiveSessionId(nextActiveId);
-        setTypingState({ messageId: null, fullText: '' });
-      }
+        if (remainingSessions.length === 0) {
+          const newSession = createSession();
+          setActiveSessionId(newSession.id);
+          setTypingState({ messageId: null, fullText: '' });
+          return [newSession];
+        }
 
-      return remainingSessions;
-    });
-  }, []);
+        if (sessionId === activeSessionIdRef.current) {
+          const nextActiveId = remainingSessions[0].id;
+          setActiveSessionId(nextActiveId);
+          setTypingState({ messageId: null, fullText: '' });
+        }
+
+        return remainingSessions;
+      });
+    },
+    [sessions, toast],
+  );
 
   const toggleHeaderMenu = () => {
     setIsHeaderMenuOpen((prev) => !prev);
@@ -361,7 +462,7 @@ export default function Home() {
         newPassword: '',
         confirmPassword: '',
       });
-      alert('Пароль успешно изменен');
+      toast.success('Пароль успешно изменен');
     } catch (error) {
       setChangePasswordError(error.message || 'Ошибка смены пароля');
     } finally {
@@ -411,7 +512,7 @@ export default function Home() {
       <BackgroundBlobs />
       <div className={styles.content}>
         <div className={styles.mainAreaHeader}>
-          <div className={styles.headerMenu}>
+          <div className={styles.headerMenu} ref={headerMenuRef}>
             <button
               type="button"
               onClick={toggleHeaderMenu}

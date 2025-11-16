@@ -3,9 +3,14 @@ export const API_URL =
 export const AUTH_API_URL =
   process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8080';
 
+export function getAuthToken() {
+  return typeof window !== 'undefined'
+    ? localStorage.getItem('auth_token')
+    : null;
+}
+
 export function getAuthHeaders() {
-  const token =
-    typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const token = getAuthToken();
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),

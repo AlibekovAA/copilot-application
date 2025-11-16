@@ -231,7 +231,7 @@
   right: 0.75rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   z-index: 10;
   pointer-events: none;
@@ -252,4 +252,3 @@
 .footerLeft {
   flex: 1;
 }
-
