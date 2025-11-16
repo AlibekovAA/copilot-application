@@ -1,1 +1,0 @@
-2025/11/16 16:07:29 application.go:43: [ERROR] erdsdssdsdror &{0 ../logs {postgresql://user:password@postgres_db:5432/db?sslmode=disable} :8080 c8ZYvTeEOV9gOyqG70mQu8DTcR4BvWsaDBlkEIOe5TU=} <nil>

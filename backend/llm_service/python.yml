@@ -1,18 +1,15 @@
-version: '3.9'
-
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     container_name: copilot-llm-python
     restart: unless-stopped
     ports:
       - '8000:8000'
     env_file:
       - ../../.env
-    volumes:
-      - ./:/app:delegated
     networks:
       - app-network
     depends_on:
@@ -20,8 +17,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:8000/health || exit 1']
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
-    command: make run
+      start_period: 10s

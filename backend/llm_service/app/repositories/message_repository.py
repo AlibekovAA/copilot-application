@@ -26,15 +26,19 @@ class MessageRepository(BaseRepository):
         return message
 
     async def get_last_messages(self, conversation_id: int, limit: int = 5) -> list[dict[str, str]]:
-        stmt = (
-            select(Message.role, Message.content)
+        subquery = (
+            select(Message.message_id, Message.role, Message.content, Message.created_at)
             .where(Message.conversation_id == conversation_id)
             .order_by(Message.created_at.desc())
             .limit(limit)
+            .subquery()
         )
+
+        stmt = select(subquery.c.role, subquery.c.content).order_by(subquery.c.created_at.asc())
+
         result = await self.session.execute(stmt)
         messages = [{"role": row.role, "content": row.content} for row in result.all()]
-        return list(reversed(messages))
+        return messages
 
     async def get_all_messages(self, conversation_id: int) -> list[dict[str, str]]:
         stmt = (

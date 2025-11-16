@@ -24,18 +24,11 @@ import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
 import { Button } from './components/ui/button';
 import { changePassword as apiChangePassword } from './utils/authApi';
+import { API_URL, getAuthHeaders } from './utils/apiHelpers';
 import styles from './page.module.css';
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, logout } = useAuth();
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('auth_token');
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-  };
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);
@@ -48,7 +41,11 @@ export default function Home() {
   });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [changePasswordData, setChangePasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [changePasswordData, setChangePasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [changePasswordError, setChangePasswordError] = useState(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
@@ -66,54 +63,52 @@ export default function Home() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  useEffect(() => {
-    const loadConversations = async () => {
-      if (!isAuthenticated || !userId) return;
+  const loadConversations = useCallback(async () => {
+    if (!isAuthenticated || !userId) return;
 
-      try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(
-          `${apiUrl}/conversations?user_id=${userId}&limit=50&offset=0`,
-          {
-            headers: getAuthHeaders(),
-          },
+    try {
+      const response = await fetch(
+        `${API_URL}/conversations?limit=50&offset=0`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+
+      if (!response.ok) {
+        console.error(
+          '[History] Failed to load conversations, status:',
+          response.status,
         );
-
-        if (!response.ok) {
-          console.error(
-            '[History] Failed to load conversations, status:',
-            response.status,
-          );
-          return;
-        }
-
-        const data = await response.json();
-        console.log('[History] Loaded data:', data);
-
-        if (data.conversations && data.conversations.length > 0) {
-          const loadedSessions = data.conversations.map((conv) => ({
-            id: `conv-${conv.conversation_id}`,
-            conversationId: conv.conversation_id,
-            title: conv.title || 'Новый диалог',
-            createdAt: conv.created_at,
-            updatedAt: conv.created_at,
-            messages: [],
-          }));
-
-          console.log('[History] Setting sessions:', loadedSessions);
-          setSessions(loadedSessions);
-          setActiveSessionId(loadedSessions[0].id);
-        } else {
-          console.log('[History] No conversations found in database');
-        }
-      } catch (error) {
-        console.error('[History] Error loading conversations:', error);
+        return;
       }
-    };
 
-    loadConversations();
+      const data = await response.json();
+      console.log('[History] Loaded data:', data);
+
+      if (data.conversations && data.conversations.length > 0) {
+        const loadedSessions = data.conversations.map((conv) => ({
+          id: `conv-${conv.conversation_id}`,
+          conversationId: conv.conversation_id,
+          title: conv.title || 'Новый диалог',
+          createdAt: conv.created_at,
+          updatedAt: conv.created_at,
+          messages: [],
+        }));
+
+        console.log('[History] Setting sessions:', loadedSessions);
+        setSessions(loadedSessions);
+        setActiveSessionId(loadedSessions[0].id);
+      } else {
+        console.log('[History] No conversations found in database');
+      }
+    } catch (error) {
+      console.error('[History] Error loading conversations:', error);
+    }
   }, [isAuthenticated, userId]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   const updateSession = useCallback((sessionId, updater) => {
     setSessions((prevSessions) => {
@@ -138,7 +133,11 @@ export default function Home() {
     });
   }, []);
 
-  const handleSubmitQuestion = async (question, files = [], selectedTopic = null) => {
+  const handleSubmitQuestion = async (
+    question,
+    files = [],
+    selectedTopic = null,
+  ) => {
     if (!question.trim() && files.length === 0) {
       return;
     }
@@ -168,27 +167,23 @@ export default function Home() {
           'business',
         );
       } else {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-        const domain = selectedTopic ? getDomainFromTopic(selectedTopic) : 'general';
+        const domain = selectedTopic
+          ? getDomainFromTopic(selectedTopic)
+          : 'general';
         const cleanedQuestion = question.trim();
 
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
 
         if (!conversationId) {
-          const createResponse = await fetch(
-            `${apiUrl}/conversations?user_id=${userId}`,
-            {
-              method: 'POST',
-              headers: getAuthHeaders(),
-              body: JSON.stringify({
-                title: 'Новый диалог',
-                business_context: domain,
-              }),
-            },
-          );
+          const createResponse = await fetch(`${API_URL}/conversations`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              title: 'Новый диалог',
+              business_context: domain,
+            }),
+          });
 
           if (!createResponse.ok) {
             throw new Error('Failed to create conversation');
@@ -203,11 +198,10 @@ export default function Home() {
           }));
         }
 
-        const response = await fetch(`${apiUrl}/chat`, {
+        const response = await fetch(`${API_URL}/chat`, {
           method: 'POST',
           headers: getAuthHeaders(),
           body: JSON.stringify({
-            user_id: userId,
             conversation_id: conversationId,
             message: cleanedQuestion || question,
             domain: domain,
@@ -280,15 +274,13 @@ export default function Home() {
 
     if (session && session.conversationId && session.messages.length === 0) {
       try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         console.log(
           '[Messages] Loading messages from:',
-          `${apiUrl}/conversations/${session.conversationId}/messages`,
+          `${API_URL}/conversations/${session.conversationId}/messages`,
         );
 
         const response = await fetch(
-          `${apiUrl}/conversations/${session.conversationId}/messages?user_id=${userId}`,
+          `${API_URL}/conversations/${session.conversationId}/messages`,
           {
             headers: getAuthHeaders(),
           },
@@ -359,9 +351,16 @@ export default function Home() {
     try {
       setChangePasswordError(null);
       setIsChangingPassword(true);
-      await apiChangePassword(changePasswordData.oldPassword, changePasswordData.newPassword);
+      await apiChangePassword(
+        changePasswordData.oldPassword,
+        changePasswordData.newPassword,
+      );
       setIsChangePasswordOpen(false);
-      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePasswordData({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
       alert('Пароль успешно изменен');
     } catch (error) {
       setChangePasswordError(error.message || 'Ошибка смены пароля');
@@ -524,26 +523,52 @@ export default function Home() {
       </div>
 
       {isChangePasswordOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsChangePasswordOpen(false)}>
-          <Card className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setIsChangePasswordOpen(false)}
+        >
+          <Card
+            className={styles.modalCard}
+            onClick={(e) => e.stopPropagation()}
+          >
             <CardHeader>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
                 <CardTitle>Сменить пароль</CardTitle>
                 <button
                   type="button"
                   onClick={() => {
                     setIsChangePasswordOpen(false);
-                    setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                    setChangePasswordData({
+                      oldPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
                     setChangePasswordError(null);
                   }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'inherit',
+                  }}
                 >
                   <X style={{ width: '1.5rem', height: '1.5rem' }} />
                 </button>
               </div>
             </CardHeader>
             <CardContent>
-              <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleChangePassword();
+                }}
+              >
                 <div style={{ marginBottom: '0.75rem' }}>
                   <Label htmlFor="old-password">Текущий пароль</Label>
                   <div style={{ position: 'relative' }}>
@@ -551,16 +576,42 @@ export default function Home() {
                       id="old-password"
                       type={showOldPassword ? 'text' : 'password'}
                       value={changePasswordData.oldPassword}
-                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                      onChange={(e) =>
+                        setChangePasswordData((prev) => ({
+                          ...prev,
+                          oldPassword: e.target.value,
+                        }))
+                      }
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        height: '1.75rem',
+                        fontSize: '0.875rem',
+                        padding: '0.25rem 0.5rem',
+                        paddingRight: '2.5rem',
+                        boxSizing: 'border-box',
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowOldPassword(!showOldPassword)}
-                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      style={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
                     >
-                      {showOldPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                      {showOldPassword ? (
+                        <EyeOff
+                          style={{ width: '1.25rem', height: '1.25rem' }}
+                        />
+                      ) : (
+                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -572,54 +623,126 @@ export default function Home() {
                       id="new-password"
                       type={showNewPassword ? 'text' : 'password'}
                       value={changePasswordData.newPassword}
-                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      onChange={(e) =>
+                        setChangePasswordData((prev) => ({
+                          ...prev,
+                          newPassword: e.target.value,
+                        }))
+                      }
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        height: '1.75rem',
+                        fontSize: '0.875rem',
+                        padding: '0.25rem 0.5rem',
+                        paddingRight: '2.5rem',
+                        boxSizing: 'border-box',
+                      }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      style={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
                     >
-                      {showNewPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                      {showNewPassword ? (
+                        <EyeOff
+                          style={{ width: '1.25rem', height: '1.25rem' }}
+                        />
+                      ) : (
+                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <Label htmlFor="confirm-password">Подтвердите новый пароль</Label>
+                  <Label htmlFor="confirm-password">
+                    Подтвердите новый пароль
+                  </Label>
                   <div style={{ position: 'relative' }}>
                     <Input
                       id="confirm-password"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={changePasswordData.confirmPassword}
-                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      onChange={(e) =>
+                        setChangePasswordData((prev) => ({
+                          ...prev,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
                       required
-                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        height: '1.75rem',
+                        fontSize: '0.875rem',
+                        padding: '0.25rem 0.5rem',
+                        paddingRight: '2.5rem',
+                        boxSizing: 'border-box',
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      style={{
+                        position: 'absolute',
+                        right: '0.5rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
                     >
-                      {showConfirmPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                      {showConfirmPassword ? (
+                        <EyeOff
+                          style={{ width: '1.25rem', height: '1.25rem' }}
+                        />
+                      ) : (
+                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                      )}
                     </button>
                   </div>
                 </div>
 
                 {changePasswordError && (
-                  <div style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.875rem' }}>
+                  <div
+                    style={{
+                      color: '#ef4444',
+                      marginBottom: '0.75rem',
+                      fontSize: '0.875rem',
+                    }}
+                  >
                     {changePasswordError}
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    justifyContent: 'flex-end',
+                  }}
+                >
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => {
                       setIsChangePasswordOpen(false);
-                      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                      setChangePasswordData({
+                        oldPassword: '',
+                        newPassword: '',
+                        confirmPassword: '',
+                      });
                       setChangePasswordError(null);
                     }}
                     disabled={isChangingPassword}
