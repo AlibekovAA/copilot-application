@@ -14,11 +14,7 @@ import {
   createAssistantMessage,
   getSessionTitle,
 } from './utils/messageHelpers';
-<<<<<<< HEAD
-import { extractDomainFromQuestion } from './constants/topics';
-=======
 import { getDomainFromTopic } from './constants/topics';
->>>>>>> 68a395f (Frontend: go-back)
 import { ScrollArea } from './components/ui/scroll-area';
 import { Plus, Eye, EyeOff, X } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
@@ -79,12 +75,9 @@ export default function Home() {
           process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const response = await fetch(
           `${apiUrl}/conversations?user_id=${userId}&limit=50&offset=0`,
-<<<<<<< HEAD
-=======
           {
             headers: getAuthHeaders(),
           },
->>>>>>> 68a395f (Frontend: go-back)
         );
 
         if (!response.ok) {
@@ -145,11 +138,7 @@ export default function Home() {
     });
   }, []);
 
-<<<<<<< HEAD
-  const handleSubmitQuestion = async (question, files = []) => {
-=======
   const handleSubmitQuestion = async (question, files = [], selectedTopic = null) => {
->>>>>>> 68a395f (Frontend: go-back)
     if (!question.trim() && files.length === 0) {
       return;
     }
@@ -182,13 +171,8 @@ export default function Home() {
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-<<<<<<< HEAD
-        const domain = extractDomainFromQuestion(question);
-        const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
-=======
         const domain = selectedTopic ? getDomainFromTopic(selectedTopic) : 'general';
         const cleanedQuestion = question.trim();
->>>>>>> 68a395f (Frontend: go-back)
 
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
@@ -305,12 +289,9 @@ export default function Home() {
 
         const response = await fetch(
           `${apiUrl}/conversations/${session.conversationId}/messages?user_id=${userId}`,
-<<<<<<< HEAD
-=======
           {
             headers: getAuthHeaders(),
           },
->>>>>>> 68a395f (Frontend: go-back)
         );
 
         if (response.ok) {
