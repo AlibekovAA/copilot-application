@@ -17,11 +17,12 @@ import (
 )
 
 type Application struct {
-	DB        *sqlx.DB
-	Router    *mux.Router
-	Addr      string
-	JWTSecret []byte
-	logger    *logger.Logger
+	DB         *sqlx.DB
+	userRepo   *database.UserRepository
+	Router     *mux.Router
+	Addr       string
+	JWTSecret  []byte
+	logger     *logger.Logger
 }
 
 func NewApplication() *Application {
@@ -40,6 +41,7 @@ func (app *Application) Configure(ctx context.Context, logger *logger.Logger, cf
 	}
 
 	app.DB = db
+	app.userRepo = database.NewUserRepository(db)
 	app.Addr = cfg.Addr
 	app.JWTSecret = []byte(cfg.JWTSecret)
 

@@ -9,6 +9,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	selectUserQuery = `SELECT user_id, email, name, hashed_password FROM users`
+)
+
 func OpenDB(cfg *config.DatabaseConfig) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", cfg.URI)
 	if err != nil {
@@ -29,26 +33,36 @@ func OpenDB(cfg *config.DatabaseConfig) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func GetUserByEmail(email string, db *sqlx.DB) (User, error) {
+type UserRepository struct {
+	db *sqlx.DB
+}
+
+func NewUserRepository(db *sqlx.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) GetByEmail(email string) (User, error) {
 	var user User
-	err := db.Get(&user, `SELECT * FROM users WHERE email = $1`, email)
+	query := selectUserQuery + ` WHERE email = $1`
+	err := r.db.Get(&user, query, email)
 	return user, err
 }
 
-func GetUserByID(userID int64, db *sqlx.DB) (User, error) {
+func (r *UserRepository) GetByID(userID int64) (User, error) {
 	var user User
-	err := db.Get(&user, `SELECT * FROM users WHERE user_id = $1`, userID)
+	query := selectUserQuery + ` WHERE user_id = $1`
+	err := r.db.Get(&user, query, userID)
 	return user, err
 }
 
-func UpdateUserPassword(user User, db *sqlx.DB) error {
+func (r *UserRepository) UpdatePassword(user User) error {
 	query := `UPDATE users SET hashed_password = :hashed_password WHERE user_id = :user_id`
-	_, err := db.NamedExec(query, user)
+	_, err := r.db.NamedExec(query, user)
 	return err
 }
 
-func CreateUser(user User, db *sqlx.DB) error {
-	tx, err := db.Beginx()
+func (r *UserRepository) Create(user User) error {
+	tx, err := r.db.Beginx()
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,10 @@ export async function login(email, password) {
   }
 
   const data = await response.json();
-  return data.token;
+  return {
+    token: data.token,
+    user: data.user,
+  };
 }
 
 export async function register(name, email, password) {
@@ -36,7 +39,11 @@ export async function register(name, email, password) {
     throw new Error(error.error || 'Ошибка регистрации');
   }
 
-  return await login(email, password);
+  const data = await response.json();
+  return {
+    token: data.token,
+    user: data.user,
+  };
 }
 
 export async function changePassword(oldPassword, newPassword) {

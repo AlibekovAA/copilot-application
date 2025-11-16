@@ -107,11 +107,24 @@ docker-compose up --build
 
 ## API интеграция
 
-**TODO: JWT интеграция**
+### Аутентификация
 
-- Когда появится golang backend, установить `jwt-decode`: `pnpm add jwt-decode`
-- В `AuthContext.jsx` заменить `getUserIdFromToken()` на реальный парсинг JWT
-- Пример: `const decoded = jwtDecode(token); return decoded.user_id;`
+Приложение интегрировано с Go backend для аутентификации:
+
+- **Login/Register** - бэкенд возвращает JWT токен + данные пользователя
+- **Формат ответа:**
+  ```json
+  {
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "user": {
+      "id": 123,
+      "email": "user@example.com",
+      "name": "Иван Иванов"
+    }
+  }
+  ```
+- **Проверка токена** - при загрузке страницы запрос к `/api/profile`
+- **JWT не декодируется на клиенте** - данные приходят с бэкенда
 
 ### Текстовые запросы
 
@@ -120,7 +133,8 @@ docker-compose up --build
 **Создание диалога (автоматически при первом сообщении):**
 
 ```javascript
-POST http://localhost:8000/conversations?user_id=1
+POST http://localhost:8000/conversations
+Authorization: Bearer <jwt_token>
 Content-Type: application/json
 
 {
@@ -133,15 +147,17 @@ Content-Type: application/json
 
 ```javascript
 POST http://localhost:8000/chat
+Authorization: Bearer <jwt_token>
 Content-Type: application/json
 
 {
-  "user_id": 1,  // Из JWT токена (пока мок)
   "conversation_id": 123,  // ID из БД
   "message": "Ваш вопрос",
   "domain": "general"
 }
 ```
+
+**Примечание:** `user_id` извлекается из JWT токена на бэкенде, не передается в запросе.
 
 **Маппинг тем:**
 

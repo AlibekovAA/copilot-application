@@ -60,7 +60,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	_, err := database.GetUserByEmail(req.Email, app.DB)
+	_, err := app.userRepo.GetByEmail(req.Email)
 	if err == nil {
 		app.respondWithError(w, http.StatusConflict, "email already exists")
 		return
@@ -78,7 +78,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		Name:           req.Name,
 		HashedPassword: string(hashedPassword),
 	}
-	err = database.CreateUser(user, app.DB)
+	err = app.userRepo.Create(user)
 
 	if err != nil {
 		app.logger.Errorf("Registration DB error: %v", err)
@@ -86,9 +86,27 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	app.respondWithJSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "User created successfully",
-		"user":    user,
+	createdUser, err := app.userRepo.GetByEmail(req.Email)
+	if err != nil {
+		app.logger.Errorf("Failed to fetch created user: %v", err)
+		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
+		return
+	}
+
+	token, err := app.generateJWT(createdUser.ID, createdUser.Email)
+	if err != nil {
+		app.logger.Errorf("Token generation error: %v", err)
+		app.respondWithError(w, http.StatusInternalServerError, "token generation failed")
+		return
+	}
+
+	app.respondWithJSON(w, http.StatusCreated, map[string]any{
+		"token": token,
+		"user": map[string]any{
+			"id":    createdUser.ID,
+			"email": createdUser.Email,
+			"name":  createdUser.Name,
+		},
 	})
 }
 
@@ -99,7 +117,7 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := database.GetUserByEmail(req.Email, app.DB)
+	user, err := app.userRepo.GetByEmail(req.Email)
 	if err != nil {
 		app.respondWithError(w, http.StatusUnauthorized, "invalid credentials")
 		return
@@ -117,7 +135,14 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.respondWithJSON(w, http.StatusOK, map[string]string{"token": token})
+	app.respondWithJSON(w, http.StatusOK, map[string]any{
+		"token": token,
+		"user": map[string]any{
+			"id":    user.ID,
+			"email": user.Email,
+			"name":  user.Name,
+		},
+	})
 }
 
 func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +153,7 @@ func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.respondWithJSON(w, http.StatusOK, map[string]interface{}{
+	app.respondWithJSON(w, http.StatusOK, map[string]any{
 		"user_id": userID,
 		"email":   email,
 	})
@@ -152,7 +177,7 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	user, err := database.GetUserByID(userID, app.DB)
+	user, err := app.userRepo.GetByID(userID)
 	if err != nil {
 		app.logger.Errorf("User fetch error: %v", err)
 		app.respondWithError(w, http.StatusUnauthorized, "user not found")
@@ -173,7 +198,7 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 
 	user.HashedPassword = string(hashedNewPassword)
 
-	err = database.UpdateUserPassword(user, app.DB)
+	err = app.userRepo.UpdatePassword(user)
 	if err != nil {
 		app.logger.Errorf("Password update error: %v", err)
 		app.respondWithError(w, http.StatusInternalServerError, "failed to update password")
@@ -191,13 +216,13 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, errors.New("unexpected signing method")
-			}
-			return app.JWTSecret, nil
-		})
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return app.JWTSecret, nil
+	})
 
 		if err != nil || !token.Valid {
 			app.respondWithError(w, http.StatusUnauthorized, "invalid token")
@@ -228,7 +253,7 @@ func (app *Application) respondWithError(w http.ResponseWriter, code int, messag
 	app.respondWithJSON(w, code, ErrorResponse{Error: message})
 }
 
-func (app *Application) respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+func (app *Application) respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	if err := json.NewEncoder(w).Encode(payload); err != nil {
