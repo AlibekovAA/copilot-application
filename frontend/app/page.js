@@ -6,43 +6,54 @@ import { useTheme } from './context/ThemeContext';
 import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
+import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
 import { generateMockAnswer } from './utils/mockLLM';
+import {
+  createSession,
+  createUserMessage,
+  createAssistantMessage,
+  getSessionTitle,
+} from './utils/messageHelpers';
+import { getDomainFromTopic } from './constants/topics';
 import { ScrollArea } from './components/ui/scroll-area';
-import { Plus } from './components/copilot/icons';
+import { Plus, Eye, EyeOff, X } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
 import { Toggle } from './components/ui/toggle';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Button } from './components/ui/button';
+import { changePassword as apiChangePassword } from './utils/authApi';
 import styles from './page.module.css';
-
-
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-};
-
-const createSession = (conversationId = null) => {
-  const now = new Date().toISOString();
-  return {
-    id: generateId(),
-    conversationId: conversationId,
-    title: 'Новый диалог',
-    createdAt: now,
-    updatedAt: now,
-    messages: [],
-  };
-};
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, logout } = useAuth();
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    };
+  };
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);
   const [sessions, setSessions] = useState([initialSession]);
   const [activeSessionId, setActiveSessionId] = useState(initialSession.id);
   const [isLoadingAnswer, setIsLoadingAnswer] = useState(false);
-  const [typingState, setTypingState] = useState({ messageId: null, fullText: '' });
+  const [typingState, setTypingState] = useState({
+    messageId: null,
+    fullText: '',
+  });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [changePasswordData, setChangePasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [changePasswordError, setChangePasswordError] = useState(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
 
   useEffect(() => {
@@ -55,9 +66,60 @@ export default function Home() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!isAuthenticated || !userId) return;
+
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const response = await fetch(
+          `${apiUrl}/conversations?user_id=${userId}&limit=50&offset=0`,
+          {
+            headers: getAuthHeaders(),
+          },
+        );
+
+        if (!response.ok) {
+          console.error(
+            '[History] Failed to load conversations, status:',
+            response.status,
+          );
+          return;
+        }
+
+        const data = await response.json();
+        console.log('[History] Loaded data:', data);
+
+        if (data.conversations && data.conversations.length > 0) {
+          const loadedSessions = data.conversations.map((conv) => ({
+            id: `conv-${conv.conversation_id}`,
+            conversationId: conv.conversation_id,
+            title: conv.title || 'Новый диалог',
+            createdAt: conv.created_at,
+            updatedAt: conv.created_at,
+            messages: [],
+          }));
+
+          console.log('[History] Setting sessions:', loadedSessions);
+          setSessions(loadedSessions);
+          setActiveSessionId(loadedSessions[0].id);
+        } else {
+          console.log('[History] No conversations found in database');
+        }
+      } catch (error) {
+        console.error('[History] Error loading conversations:', error);
+      }
+    };
+
+    loadConversations();
+  }, [isAuthenticated, userId]);
+
   const updateSession = useCallback((sessionId, updater) => {
-    setSessions(prevSessions => {
-      const sessionIndex = prevSessions.findIndex(session => session.id === sessionId);
+    setSessions((prevSessions) => {
+      const sessionIndex = prevSessions.findIndex(
+        (session) => session.id === sessionId,
+      );
       if (sessionIndex === -1) {
         return prevSessions;
       }
@@ -69,60 +131,29 @@ export default function Home() {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
       return [updatedSession, ...remainingSessions];
     });
   }, []);
 
-  const topicToDomain = {
-    юриспруденция: 'legal',
-    маркетинг: 'marketing',
-    финансы: 'finance',
-    продажи: 'sales',
-    управление: 'management',
-    HR: 'hr',
-  };
-
-  const extractDomainFromQuestion = (question) => {
-    const hashtagMatch = question.match(/^#([^\s]+)/);
-    if (hashtagMatch) {
-      const topic = hashtagMatch[1];
-      return topicToDomain[topic] || 'general';
-    }
-    return 'general';
-  };
-
-  const handleSubmitQuestion = async (question, files = []) => {
+  const handleSubmitQuestion = async (question, files = [], selectedTopic = null) => {
     if (!question.trim() && files.length === 0) {
       return;
     }
 
     const sessionId = activeSessionId;
-    const timestamp = new Date().toISOString();
-    
-    let messageContent = question;
-    if (files.length > 0) {
-      const fileNames = files.map(f => f.name).join(', ');
-      messageContent = question 
-        ? `${question}\n\n[Прикреплено файлов: ${files.length} - ${fileNames}]`
-        : `[Прикреплено файлов: ${files.length} - ${fileNames}]`;
-    }
+    const userMessage = createUserMessage(question, files);
 
-    const userMessage = {
-      id: generateId(),
-      role: 'user',
-      content: messageContent,
-      timestamp,
-      files: files.length > 0 ? files.map(f => ({ name: f.name, size: f.size })) : undefined,
-    };
-
-    updateSession(sessionId, session => ({
+    updateSession(sessionId, (session) => ({
       ...session,
       messages: [...session.messages, userMessage],
-      title: session.messages.length === 0 
-        ? (question || `Файлы (${files.length})`) 
-        : session.title,
-      updatedAt: timestamp,
+      title:
+        session.messages.length === 0
+          ? getSessionTitle(question, files)
+          : session.title,
+      updatedAt: userMessage.timestamp,
     }));
 
     setIsLoadingAnswer(true);
@@ -130,29 +161,28 @@ export default function Home() {
 
     try {
       let answer;
-      
+
       if (files.length > 0) {
         answer = await generateMockAnswer(
-          question || `Обработка ${files.length} файлов`, 
-          'business'
+          question || `Обработка ${files.length} файлов`,
+          'business',
         );
       } else {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        
-        const domain = extractDomainFromQuestion(question);
-        const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
-        
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+        const domain = selectedTopic ? getDomainFromTopic(selectedTopic) : 'general';
+        const cleanedQuestion = question.trim();
+
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
-        
+
         if (!conversationId) {
           const createResponse = await fetch(
             `${apiUrl}/conversations?user_id=${userId}`,
             {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: getAuthHeaders(),
               body: JSON.stringify({
                 title: 'Новый диалог',
                 business_context: domain,
@@ -166,7 +196,7 @@ export default function Home() {
 
           const createData = await createResponse.json();
           conversationId = createData.conversation_id;
-          
+
           updateSession(sessionId, (session) => ({
             ...session,
             conversationId: conversationId,
@@ -175,9 +205,7 @@ export default function Home() {
 
         const response = await fetch(`${apiUrl}/chat`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             user_id: userId,
             conversation_id: conversationId,
@@ -196,45 +224,35 @@ export default function Home() {
         const data = await response.json();
         answer = data.response || 'Не удалось получить ответ';
       }
-      
-      const answerMessageId = generateId();
-      const answerTimestamp = new Date().toISOString();
-      const assistantMessage = {
-        id: answerMessageId,
-        role: 'assistant',
-        content: answer,
-        timestamp: answerTimestamp,
-      };
 
-      updateSession(sessionId, session => ({
+      const assistantMessage = createAssistantMessage(answer);
+
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
-        updatedAt: answerTimestamp,
+        updatedAt: assistantMessage.timestamp,
       }));
 
       if (activeSessionIdRef.current === sessionId) {
-        setTypingState({ messageId: answerMessageId, fullText: answer });
+        setTypingState({ messageId: assistantMessage.id, fullText: answer });
       }
     } catch (error) {
       console.error('Error generating answer:', error);
-      const errorMessage = 'Произошла ошибка при получении ответа. Попробуйте еще раз.';
-      const errorMessageId = generateId();
-      const errorTimestamp = new Date().toISOString();
-      const assistantMessage = {
-        id: errorMessageId,
-        role: 'assistant',
-        content: errorMessage,
-        timestamp: errorTimestamp,
-      };
+      const errorMessage =
+        'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+      const assistantMessage = createAssistantMessage(errorMessage);
 
-      updateSession(sessionId, session => ({
+      updateSession(sessionId, (session) => ({
         ...session,
         messages: [...session.messages, assistantMessage],
-        updatedAt: errorTimestamp,
+        updatedAt: assistantMessage.timestamp,
       }));
 
       if (activeSessionIdRef.current === sessionId) {
-        setTypingState({ messageId: errorMessageId, fullText: errorMessage });
+        setTypingState({
+          messageId: assistantMessage.id,
+          fullText: errorMessage,
+        });
       }
     } finally {
       setIsLoadingAnswer(false);
@@ -247,24 +265,61 @@ export default function Home() {
 
   const handleCreateNewSession = () => {
     const newSession = createSession();
-    setSessions(prevSessions => [newSession, ...prevSessions]);
+    setSessions((prevSessions) => [newSession, ...prevSessions]);
     setActiveSessionId(newSession.id);
     setTypingState({ messageId: null, fullText: '' });
     setIsHeaderMenuOpen(false);
   };
 
-  const handleSelectSession = (sessionId) => {
+  const handleSelectSession = async (sessionId) => {
     setActiveSessionId(sessionId);
     setTypingState({ messageId: null, fullText: '' });
+
+    const session = sessions.find((s) => s.id === sessionId);
+    console.log('[Messages] Selected session:', session);
+
+    if (session && session.conversationId && session.messages.length === 0) {
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        console.log(
+          '[Messages] Loading messages from:',
+          `${apiUrl}/conversations/${session.conversationId}/messages`,
+        );
+
+        const response = await fetch(
+          `${apiUrl}/conversations/${session.conversationId}/messages?user_id=${userId}`,
+          {
+            headers: getAuthHeaders(),
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[Messages] Loaded messages:', data);
+
+          updateSession(sessionId, (s) => ({
+            ...s,
+            messages: data.messages || [],
+          }));
+        } else {
+          console.error('[Messages] Failed to load, status:', response.status);
+        }
+      } catch (error) {
+        console.error('[Messages] Error loading messages:', error);
+      }
+    }
   };
 
   const handleDeleteSession = useCallback((sessionId) => {
-    setSessions(prevSessions => {
+    setSessions((prevSessions) => {
       if (prevSessions.length === 0) {
         return prevSessions;
       }
 
-      const remainingSessions = prevSessions.filter(session => session.id !== sessionId);
+      const remainingSessions = prevSessions.filter(
+        (session) => session.id !== sessionId,
+      );
 
       if (remainingSessions.length === prevSessions.length) {
         return prevSessions;
@@ -288,11 +343,31 @@ export default function Home() {
   }, []);
 
   const toggleHeaderMenu = () => {
-    setIsHeaderMenuOpen(prev => !prev);
+    setIsHeaderMenuOpen((prev) => !prev);
   };
 
   const closeHeaderMenu = () => {
     setIsHeaderMenuOpen(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      setChangePasswordError('Новые пароли не совпадают');
+      return;
+    }
+
+    try {
+      setChangePasswordError(null);
+      setIsChangingPassword(true);
+      await apiChangePassword(changePasswordData.oldPassword, changePasswordData.newPassword);
+      setIsChangePasswordOpen(false);
+      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      alert('Пароль успешно изменен');
+    } catch (error) {
+      setChangePasswordError(error.message || 'Ошибка смены пароля');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleHeaderThemeToggle = (checked) => {
@@ -303,17 +378,19 @@ export default function Home() {
     }
   };
 
-  const activeSession = sessions.find(session => session.id === activeSessionId) ?? sessions[0];
+  const activeSession =
+    sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
 
   const sessionSummaries = useMemo(
     () =>
-      sessions.map(session => ({
+      sessions.map((session) => ({
         id: session.id,
         title: session.title,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
         messagesCount: session.messages.length,
-        lastMessagePreview: session.messages[session.messages.length - 1]?.content,
+        lastMessagePreview:
+          session.messages[session.messages.length - 1]?.content,
       })),
     [sessions],
   );
@@ -332,17 +409,7 @@ export default function Home() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.backgroundGradient}></div>
-      <div className={`${styles.blob} ${styles.blob1}`}></div>
-      <div className={`${styles.blob} ${styles.blob2}`}></div>
-      <div className={`${styles.blob} ${styles.blob3}`}></div>
-      <div className={`${styles.blob} ${styles.blob4}`}></div>
-      <div className={`${styles.blob} ${styles.blob5}`}></div>
-      <div className={`${styles.blob} ${styles.blob6}`}></div>
-      <div className={`${styles.blob} ${styles.blob7}`}></div>
-      <div className={`${styles.blob} ${styles.blob8}`}></div>
-      <div className={`${styles.blob} ${styles.blob9}`}></div>
-
+      <BackgroundBlobs />
       <div className={styles.content}>
         <div className={styles.mainAreaHeader}>
           <div className={styles.headerMenu}>
@@ -361,7 +428,9 @@ export default function Home() {
               <div className={styles.headerDropdown} role="menu">
                 <div className={styles.headerDropdownHeader}>
                   <span className={styles.headerDropdownTitle}>Профиль</span>
-                  <p className={styles.headerDropdownSubtitle}>user@example.com</p>
+                  <p className={styles.headerDropdownSubtitle}>
+                    user@example.com
+                  </p>
                 </div>
                 <div className={styles.headerDropdownItem} role="menuitem">
                   <Toggle
@@ -370,6 +439,17 @@ export default function Home() {
                     label="Сменить тему"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeHeaderMenu();
+                    setIsChangePasswordOpen(true);
+                  }}
+                  className={styles.headerDropdownItem}
+                  role="menuitem"
+                >
+                  Сменить пароль
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -388,8 +468,7 @@ export default function Home() {
         <div className={styles.mainLayout}>
           <aside className={styles.sidebar}>
             <div className={styles.sidebarHeader}>
-              <div className={styles.sidebarHeaderContent}>
-              </div>
+              <div className={styles.sidebarHeaderContent}></div>
               <button
                 type="button"
                 onClick={handleCreateNewSession}
@@ -426,8 +505,8 @@ export default function Home() {
                     <h2>Добро пожаловать в Business Copilot</h2>
                     <p>
                       Задайте любой бизнес-вопрос и получите качественный ответ.
-          </p>
-        </div>
+                    </p>
+                  </div>
                 )}
               </div>
             </ScrollArea>
@@ -443,6 +522,124 @@ export default function Home() {
           </main>
         </div>
       </div>
+
+      {isChangePasswordOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsChangePasswordOpen(false)}>
+          <Card className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <CardTitle>Сменить пароль</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangePasswordOpen(false);
+                    setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                    setChangePasswordError(null);
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                >
+                  <X style={{ width: '1.5rem', height: '1.5rem' }} />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="old-password">Текущий пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="old-password"
+                      type={showOldPassword ? 'text' : 'password'}
+                      value={changePasswordData.oldPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showOldPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="new-password">Новый пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={changePasswordData.newPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showNewPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="confirm-password">Подтвердите новый пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={changePasswordData.confirmPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showConfirmPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                {changePasswordError && (
+                  <div style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.875rem' }}>
+                    {changePasswordError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsChangePasswordOpen(false);
+                      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                      setChangePasswordError(null);
+                    }}
+                    disabled={isChangingPassword}
+                    className={styles.cancelButton}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className={styles.changePasswordButton}
+                  >
+                    {isChangingPassword ? 'Смена...' : 'Сменить пароль'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

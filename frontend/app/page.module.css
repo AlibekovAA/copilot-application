@@ -358,6 +358,12 @@
   border: none;
   color: var(--app-text-primary);
   transition: background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+
+.headerDropdownItem:hover {
+  background: rgba(153, 51, 255, 0.15);
+  color: var(--app-text-primary);
 }
 
 .headerDropdownItem:has(button):hover {
@@ -365,7 +371,7 @@
   color: var(--app-text-primary);
 }
 
-.headerDropdownItem:not(:has(button)) {
+.headerDropdownItem:not(:has(button)):not(button) {
   cursor: default;
 }
 
@@ -670,5 +676,111 @@
 .iconXLarge {
   width: 2.5rem;
   height: 2.5rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalCard {
+  width: 100%;
+  max-width: 24rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  gap: 1rem;
+}
+
+.modalCard :global(.cardHeader) {
+  padding: 1rem 1rem 0 1rem;
+}
+
+.modalCard :global(.cardContent) {
+  padding: 0 1rem;
+}
+
+.modalCard :global(.cardContent:last-child) {
+  padding-bottom: 1rem;
+}
+
+.modalCard :global(.input) {
+  height: 1.75rem !important;
+  font-size: 0.875rem !important;
+  padding: 0.25rem 0.5rem !important;
+  box-sizing: border-box;
+}
+
+.modalCard form > div {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modalCard form > div > div[style*="position: relative"] {
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.changePasswordButton {
+  position: relative;
+  background: linear-gradient(to right, #491680, #8b1a14) !important;
+  color: white !important;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.changePasswordButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, #8822ee, #de2013);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.changePasswordButton * {
+  position: relative;
+  z-index: 1;
+  color: white !important;
+}
+
+.changePasswordButton:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.changePasswordButton:disabled {
+  opacity: 1;
+  transform: none;
+}
+
+.cancelButton {
+  background-color: rgba(153, 51, 255, 0.1) !important;
+  border-color: rgba(153, 51, 255, 0.3) !important;
+  color: rgba(153, 51, 255, 0.9) !important;
+  transition: all 0.5s ease !important;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background-color: rgba(153, 51, 255, 0.2) !important;
+  border-color: rgba(153, 51, 255, 0.5) !important;
+  color: rgba(153, 51, 255, 1) !important;
+}
+
+.cancelButton:disabled {
+  opacity: 0.5;
 }
 
