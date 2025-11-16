@@ -1,4 +1,4 @@
-const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8081';
+const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8080';
 
 export async function login(email, password) {
   const response = await fetch(`${AUTH_API_URL}/login`, {
@@ -41,7 +41,11 @@ export async function changePassword(oldPassword, newPassword) {
     throw new Error('Необходима авторизация');
   }
 
-  const response = await fetch(`${AUTH_API_URL}/api/change-password`, {
+  const url = `${AUTH_API_URL}/change-password`;
+  console.log('[ChangePassword] Request URL:', url);
+  console.log('[ChangePassword] Token exists:', !!token);
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -53,9 +57,14 @@ export async function changePassword(oldPassword, newPassword) {
     }),
   });
 
+  console.log('[ChangePassword] Response status:', response.status);
+  console.log('[ChangePassword] Response ok:', response.ok);
+
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Ошибка смены пароля' }));
-    throw new Error(error.error || 'Ошибка смены пароля');
+    const errorData = await response.json().catch(() => ({ error: 'Ошибка смены пароля' }));
+    console.error('[ChangePassword] Error data:', errorData);
+    const errorMessage = errorData.error || errorData.message || `Ошибка смены пароля (${response.status})`;
+    throw new Error(errorMessage);
   }
 
   return await response.json();

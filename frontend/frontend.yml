@@ -10,7 +10,7 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://copilot-llm-python:8000
-      - NEXT_PUBLIC_AUTH_API_URL=http://localhost:8081
+      - NEXT_PUBLIC_AUTH_API_URL=http://localhost:8080
     networks:
       - app-network
     depends_on:
