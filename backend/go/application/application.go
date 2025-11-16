@@ -97,12 +97,7 @@ func (app *Application) Run(ctx context.Context) {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	allowedOrigins := map[string]bool{
-		"http://localhost":         true,
-		"http://localhost:8080":    true,
-		"http://localhost:8000":    true,
 		"http://frontend_app:3000": true,
-		"http://frontend_app":      true,
-		"http://nginx":             true,
 		"http://localhost:3000":    true,
 	}
 

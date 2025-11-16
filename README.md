@@ -4,7 +4,9 @@
 
 - **[Frontend](frontend/README.md)** - Next.js веб-интерфейс для взаимодействия с AI
 - **[FastAPI LLM Service](backend/llm_service/README.md)** - микросервис обработки запросов к LLM с поддержкой истории диалогов
+- **[Go-Authentication ](backend/go/README.md)** - микросервис для авторизации
 - **PostgreSQL** - база данных для хранения диалогов и сообщений
+
 
 ```mermaid
 graph TD
@@ -72,6 +74,7 @@ make up
 
 - **Frontend**: http://localhost:3000
 - **FastAPI**: http://localhost:8000
+- **Go-auth**: http://localhost:8080
 - **PostgreSQL**: localhost:5432
 
 ### Остановка
@@ -109,4 +112,7 @@ MISTRAL_MODEL=mistral-small-latest
 
 # Frontend
 NEXT_PUBLIC_API_URL=http://localhost:8000
+
+#Auth
+JWT_SECRET=jwt_token
 ```

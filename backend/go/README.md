@@ -95,13 +95,8 @@ Authorization: Bearer <your_jwt_token>
 ## Поддержка CORS
 
 Разрешены следующие источники:
-- `http://localhost`
 - `http://localhost:3000`
-- `http://localhost:8000`
-- `http://localhost:8080`
-- `http://frontend_app`
 - `http://frontend_app:3000`
-- `http://nginx`
 
 Настройка CORS — в функции `corsMiddleware`.
 
