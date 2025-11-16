@@ -75,6 +75,8 @@ body,
 
 :root.theme-dark {
   color-scheme: dark;
+  --input: rgba(148, 163, 184, 0.2);
+  --input-background: rgba(20, 20, 20, 0.6);
 }
 
 :root.theme-light {
@@ -83,6 +85,8 @@ body,
   --foreground: #1f2937;
   --card: #ffffff;
   --card-foreground: #1f2937;
+  --input: rgba(148, 163, 184, 0.45);
+  --input-background: #ffffff;
   --app-bg-primary: #eef2ff;
   --app-gradient-background: linear-gradient(to bottom right, rgba(153, 51, 255, 0.25), rgba(239, 49, 36, 0.2), rgba(178, 0, 130, 0.2));
   --app-header-bg: linear-gradient(to right, rgba(255, 255, 255, 0.95), rgba(245, 245, 255, 0.9));

@@ -5,10 +5,14 @@ FastAPI микросервис для обработки текстовых за
 ## Возможности
 
 - **Интеграция с Mistral AI** - использование языковых моделей для генерации ответов
+- **Загрузка и парсинг файлов** - поддержка PDF, DOCX, TXT, MD с автоматическим извлечением текста
 - **Доменная специализация** - 7 специализированных промптов (legal, marketing, finance, sales, management, hr, general)
 - **База данных PostgreSQL** - сохранение всех сообщений с поддержкой истории диалогов
-- **Контекстные диалоги** - автоматическая загрузка последних 5 сообщений для контекста
+- **Контекстные диалоги** - автоматическая загрузка последних 10 сообщений для контекста
 - **Обогащение промпта** - первое сообщение обогащается системным промптом domain
+- **CRUD операции** - полный набор операций для управления диалогами (создание, чтение, удаление)
+- **Каскадное удаление** - автоматическое удаление связанных сообщений при удалении диалога
+- **Упрощенная обработка файлов** - файлы парсятся и текст добавляется к сообщению (не сохраняются на диск)
 - **Repository Pattern** - чистая архитектура для работы с данными
 - **Асинхронная архитектура** - полностью async/await
 - **Логирование** - структурированные логи с ротацией
@@ -16,6 +20,41 @@ FastAPI микросервис для обработки текстовых за
 - **Docker ready** - готов к развертыванию в контейнере
 - **JWT аутентификация** - защита endpoints через Bearer токены
 - **Dependency Injection** - FastAPI Dependencies для чистой архитектуры
+
+## API Endpoints
+
+### Чат
+
+- **POST /chat** - отправка сообщения в чат с поддержкой файлов
+
+### Диалоги (Conversations)
+
+- **POST /conversations** - создание нового диалога
+- **GET /conversations** - получение списка диалогов пользователя (с пагинацией)
+- **GET /conversations/{conversation_id}/messages** - получение всех сообщений диалога
+- **DELETE /conversations/{conversation_id}** - удаление диалога (каскадное удаление сообщений)
+
+### Здоровье
+
+- **GET /health** - проверка состояния сервиса
+
+## Обработка файлов
+
+Система использует **упрощенный подход** к обработке файлов:
+
+1. **Загрузка** - пользователь прикрепляет файл к сообщению
+2. **Валидация** - проверка формата и размера файла
+3. **Парсинг** - извлечение текста из файла (PDF, DOCX, TXT, MD)
+4. **Добавление к сообщению** - извлеченный текст добавляется к тексту сообщения
+5. **Отправка в AI** - сообщение с текстом файла отправляется в Mistral AI
+6. **Удаление** - файл НЕ сохраняется (ни на диск, ни в БД)
+
+**Преимущества:**
+
+- ✅ Простая архитектура (нет отдельной таблицы для файлов)
+- ✅ Меньше места на диске
+- ✅ Быстрая обработка (нет I/O операций)
+- ✅ Легче поддержка
 
 ## Архитектура
 
@@ -27,6 +66,8 @@ FastAPI микросервис для обработки текстовых за
 - **Service Layer**: бизнес-логика отделена от endpoints
 - **Pydantic Schemas**: валидация и сериализация данных
 - **Async/Await**: полностью асинхронная обработка запросов
+- **Cascade Delete**: автоматическое удаление связанных сообщений при удалении диалога
+- **Упрощенная обработка файлов**: файлы парсятся on-the-fly, текст добавляется к сообщению
 
 ## Структура проекта
 
@@ -46,7 +87,7 @@ FastAPI микросервис для обработки текстовых за
 | app/api/router.py                           | Главный API роутер                  |
 | app/api/dependencies.py                     | FastAPI Dependencies (DI)           |
 | app/api/endpoints/chat.py                   | POST /chat endpoint                 |
-| app/api/endpoints/conversations.py          | GET/POST /conversations endpoints   |
+| app/api/endpoints/conversations.py          | Conversations CRUD endpoints        |
 | app/api/endpoints/health.py                 | GET /health endpoint                |
 | **app/schemas/**                            | **Pydantic схемы**                  |
 | app/schemas/chat.py                         | ChatRequest, ChatResponse           |
@@ -58,10 +99,12 @@ FastAPI микросервис для обработки текстовых за
 | **app/services/**                           | **Бизнес-логика**                   |
 | app/services/mistral_service.py             | Клиент Mistral AI API               |
 | app/services/conversation_service.py        | Сервис валидации диалогов           |
+| app/services/file_service.py                | Валидация и парсинг файлов          |
+| app/services/file_processing_service.py     | Обработка файлов (без сохранения)   |
 | **app/repositories/**                       | **Repository Pattern (Data Layer)** |
 | app/repositories/base.py                    | Базовый репозиторий                 |
 | app/repositories/message_repository.py      | Repository для сообщений            |
-| app/repositories/conversation_repository.py | Repository для диалогов             |
+| app/repositories/conversation_repository.py | Repository для диалогов (CRUD)      |
 | **app/middleware/**                         | **Middleware слой**                 |
 | app/middleware/auth.py                      | JWT аутентификация                  |
 | app/middleware/cors.py                      | CORS настройки                      |

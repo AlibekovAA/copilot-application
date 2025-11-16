@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET: str = Field(default="", description="JWT secret key for token validation")
 
+    UPLOAD_DIR: str = Field(default="/app/uploads", description="Directory for uploaded files")
+
     class Config:
         env_file = ".env"
         case_sensitive = False

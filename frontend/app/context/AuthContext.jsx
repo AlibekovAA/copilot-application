@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { JWT_TOKEN_MAX_AGE, AUTH_API_URL } from '../utils/apiHelpers';
+import { JWT_TOKEN_MAX_AGE, AUTH_API_URL, getAuthToken } from '../utils/apiHelpers';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = getAuthToken();
     if (token) {
 
       fetch(`${AUTH_API_URL}/api/profile`, {

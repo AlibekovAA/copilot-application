@@ -54,7 +54,14 @@ export function createSession(conversationId = null) {
 
 export function getSessionTitle(question, files = []) {
   if (question) {
-    return question;
+    const maxLength = 50;
+    const trimmedQuestion = question.trim();
+
+    if (trimmedQuestion.length <= maxLength) {
+      return trimmedQuestion;
+    }
+
+    return trimmedQuestion.substring(0, maxLength).trim() + '...';
   }
   if (files.length > 0) {
     return `Файлы (${files.length})`;

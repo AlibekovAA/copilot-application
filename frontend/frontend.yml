@@ -9,8 +9,8 @@ services:
       - '3000:3000'
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://copilot-llm-python:8000
-      - NEXT_PUBLIC_AUTH_API_URL=http://go-backend:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_AUTH_API_URL=http://localhost:8080
     networks:
       - app-network
     depends_on:

@@ -41,7 +41,12 @@ def get_current_user_id(request: Request) -> int:
         if user_id is None:
             raise_missing_user_id()
 
-        return int(user_id)
+        if isinstance(user_id, str):
+            return int(user_id)
+        elif isinstance(user_id, (int, float)):
+            return int(user_id)
+        else:
+            raise ValueError(f"Invalid user_id type: {type(user_id)}")
 
     except JWTError as e:
         raise handle_jwt_error(e) from e

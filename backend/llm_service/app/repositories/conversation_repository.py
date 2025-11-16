@@ -69,3 +69,10 @@ class ConversationRepository(BaseRepository):
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def delete_conversation(self, conversation_id: int, user_id: int) -> bool:
+        conversation = await self.get_conversation_by_id(conversation_id, user_id)
+        if conversation is None:
+            return False
+        await self.session.delete(conversation)
+        return True

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -57,6 +58,11 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 
 	if req.Email == "" || req.Password == "" || req.Name == "" {
 		app.respondWithError(w, http.StatusBadRequest, "missing required fields")
+		return
+	}
+
+	if len(req.Password) < 8 {
+		app.respondWithError(w, http.StatusBadRequest, "password must be at least 8 characters long")
 		return
 	}
 
@@ -177,6 +183,11 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if len(req.NewPassword) < 8 {
+		app.respondWithError(w, http.StatusBadRequest, "new password must be at least 8 characters long")
+		return
+	}
+
 	user, err := app.userRepo.GetByID(userID)
 	if err != nil {
 		app.logger.Errorf("User fetch error: %v", err)
@@ -230,7 +241,7 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			userIDFloat, ok := claims["user_id"].(float64)
+			userIDStr, ok := claims["user_id"].(string)
 			if !ok {
 				app.respondWithError(w, http.StatusUnauthorized, "invalid user_id in token")
 				return
@@ -240,7 +251,14 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 				app.respondWithError(w, http.StatusUnauthorized, "invalid email in token")
 				return
 			}
-			ctx := context.WithValue(r.Context(), userIDKey, int64(userIDFloat))
+
+			var userID int64
+			if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
+				app.respondWithError(w, http.StatusUnauthorized, "invalid user_id format")
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), userIDKey, userID)
 			ctx = context.WithValue(ctx, emailKey, email)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {

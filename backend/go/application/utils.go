@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -8,7 +9,7 @@ import (
 
 func (app *Application) generateJWT(userID int64, email string) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id": float64(userID),
+		"user_id": fmt.Sprintf("%d", userID),
 		"email":   email,
 		"exp":     time.Now().Add(72 * time.Hour).Unix(),
 	}

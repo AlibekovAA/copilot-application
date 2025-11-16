@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '../ui/card';
-import { Copy, Check } from './icons';
+import { Copy, Check, Paperclip } from './icons';
 import { cn } from '../ui/utils';
 import { TYPING_INTERVAL_MS } from '../../utils/apiHelpers';
+import { formatFileSize } from '../../utils/fileValidation';
 import styles from './ConversationView.module.css';
 
 const USER_LABEL = 'Вы';
@@ -48,13 +49,13 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
       typingIntervalRef.current = null;
     }
 
-    const startIndex = currentTypingMessageIdRef.current === typingState.messageId 
-      ? currentIndexRef.current 
+    const startIndex = currentTypingMessageIdRef.current === typingState.messageId
+      ? currentIndexRef.current
       : 0;
-    
+
     currentTypingMessageIdRef.current = typingState.messageId;
     currentIndexRef.current = startIndex;
-    
+
     if (startIndex >= typingState.fullText.length) {
       setAnimatedText(typingState.fullText);
       onTypingComplete();
@@ -62,7 +63,7 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
     }
 
     setAnimatedText(typingState.fullText.slice(0, startIndex));
-    
+
     typingIntervalRef.current = window.setInterval(() => {
       currentIndexRef.current += 1;
       setAnimatedText(typingState.fullText.slice(0, currentIndexRef.current));
@@ -164,6 +165,19 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
                   <p className={styles.label}>Ответ</p>
                 </div>
               )}
+
+              {message.files && message.files.length > 0 && (
+                <div className={styles.filesSection}>
+                  {message.files.map((file, index) => (
+                    <div key={index} className={styles.fileItem}>
+                      <Paperclip className={styles.fileIcon} />
+                      <span className={styles.fileName}>{file.name}</span>
+                      <span className={styles.fileSize}>{formatFileSize(file.size)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className={styles.messageTextWrapper}>
                 <p className={styles.messageText}>
                   {content}

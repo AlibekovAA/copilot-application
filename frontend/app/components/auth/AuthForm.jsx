@@ -6,9 +6,11 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Logo } from './Logo';
 import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff, CheckCircle2, Send } from '../copilot/icons';
+import { useToast } from '../ui/toast';
 import styles from './auth.module.css';
 
-export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onForgotPassword, error, isLoading }) {
+export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onForgotPassword, isLoading }) {
+	const toast = useToast();
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -23,12 +25,51 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 	const handleSubmit = (e) => {
 		e.preventDefault();
 		if (mode === 'signup') {
+			if (!formData.name || formData.name.trim().length === 0) {
+				toast.error('Имя обязательно для заполнения');
+				return;
+			}
+			if (formData.name.trim().length < 2) {
+				toast.error('Имя должно содержать минимум 2 символа');
+				return;
+			}
+
+			if (!formData.email || formData.email.trim().length === 0) {
+				toast.error('Email обязателен для заполнения');
+				return;
+			}
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(formData.email)) {
+				toast.error('Введите корректный email адрес');
+				return;
+			}
+
+			if (!formData.password || formData.password.length === 0) {
+				toast.error('Пароль обязателен для заполнения');
+				return;
+			}
 			if (formData.password.length < 8) {
-				alert('Пароль должен содержать минимум 8 символов');
+				toast.error('Пароль должен содержать минимум 8 символов');
+				return;
+			}
+
+			if (!formData.confirmPassword || formData.confirmPassword.length === 0) {
+				toast.error('Подтвердите пароль');
 				return;
 			}
 			if (formData.password !== formData.confirmPassword) {
-				alert('Пароли не совпадают');
+				toast.error('Пароли не совпадают');
+				return;
+			}
+		}
+
+		if (mode === 'login') {
+			if (!formData.email || formData.email.trim().length === 0) {
+				toast.error('Email обязателен для заполнения');
+				return;
+			}
+			if (!formData.password || formData.password.length === 0) {
+				toast.error('Пароль обязателен для заполнения');
 				return;
 			}
 		}
@@ -109,7 +150,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</CardTitle>
 					</div>
 				</CardHeader>
-				
+
 				<form onSubmit={handleSubmit}>
 					<CardContent className={styles.spaceY4}>
 						<div className={styles.spaceY2}>
@@ -124,7 +165,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 								className={styles.input}
 							/>
 						</div>
-						
+
 						<div className={styles.spaceY2}>
 							<Label htmlFor="password" className={styles.label}>Пароль</Label>
 							<div className={styles.relative}>
@@ -148,20 +189,14 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 						</div>
 
 						<div className={styles.flexBetween}>
-							<button 
-								type="button" 
+							<button
+								type="button"
 								className={styles.link}
 								onClick={() => onSwitchMode && onSwitchMode('forgot-password')}
 							>
 								Забыли пароль?
 							</button>
 						</div>
-
-						{error && (
-							<div className={styles.errorMessage}>
-								{error}
-							</div>
-						)}
 
 						<Button
 							type="submit"
@@ -212,14 +247,14 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 						</CardTitle>
 					</div>
 				</CardHeader>
-				
+
 				{!forgotPasswordSent ? (
 					<form onSubmit={handleSubmit}>
 						<CardContent className={styles.spaceY4}>
 							<CardDescription className={styles.textDark}>
 								Введите ваш email, и мы отправим вам инструкции по восстановлению пароля.
 							</CardDescription>
-							
+
 							<div className={styles.spaceY2}>
 								<Label htmlFor="forgot-email" className={styles.label}>Email</Label>
 								<Input
@@ -285,7 +320,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</CardTitle>
 				</div>
 			</CardHeader>
-			
+
 			<form onSubmit={handleSubmit}>
 				<CardContent className={styles.spaceY4}>
 					<div className={styles.spaceY2}>
@@ -313,7 +348,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 							className={`${styles.input} ${styles.inputSignup}`}
 						/>
 					</div>
-					
+
 					<div className={styles.spaceY2}>
 						<Label htmlFor="signup-password" className={styles.label}>Пароль</Label>
 						<div className={styles.relative}>
@@ -368,12 +403,6 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					)}
 				</div>
 
-				{error && (
-					<div className={styles.errorMessage}>
-						{error}
-					</div>
-				)}
-
 				<Button
 					type="submit"
 					className={styles.buttonGradient}
@@ -401,4 +430,3 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 		</Card>
 	);
 }
-

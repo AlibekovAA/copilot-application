@@ -27,7 +27,7 @@ CREATE TABLE messages (
     content_type TEXT,
     enriched_prompt TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    conversation_id BIGINT NOT NULL REFERENCES conversations(conversation_id)
+    conversation_id BIGINT NOT NULL REFERENCES conversations(conversation_id) ON DELETE CASCADE
 );
 CREATE INDEX ix_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX ix_messages_conversation_created ON messages(conversation_id, created_at);
