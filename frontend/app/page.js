@@ -7,7 +7,6 @@ import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
-import { generateMockAnswer } from './utils/mockLLM';
 import {
   createSession,
   createUserMessage,
