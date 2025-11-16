@@ -1,11 +1,12 @@
 import io
+import re
 from pathlib import Path
 from typing import BinaryIO, ClassVar
 
 import chardet
+import fitz  # PyMuPDF
 from docx import Document
 from fastapi import UploadFile
-from PyPDF2 import PdfReader
 
 from app.utils import log
 
@@ -64,18 +65,67 @@ class FileService:
             await file.seek(0)
 
     @staticmethod
-    def _extract_from_pdf(file_obj: BinaryIO) -> str:
-        try:
-            reader = PdfReader(file_obj)
-            text_parts = []
+    def _fix_cyrillic_encoding(text: str) -> str:
+        if not text:
+            return text
 
-            for page_num, page in enumerate(reader.pages, 1):
+        candidates = [text]
+
+        try:
+            fixed_cp1251 = text.encode("latin1").decode("cp1251")
+            if fixed_cp1251 != text:
+                candidates.append(fixed_cp1251)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+
+        try:
+            fixed_koi8 = text.encode("latin1").decode("koi8-r")
+            if fixed_koi8 != text:
+                candidates.append(fixed_koi8)
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+
+        best_candidate = text
+        max_cyrillic = len(re.findall(r"[а-яА-ЯёЁ]", text))
+
+        for cand in candidates[1:]:
+            cyr_count = len(re.findall(r"[а-яА-ЯёЁ]", cand))
+            if cyr_count > max_cyrillic:
+                max_cyrillic = cyr_count
+                best_candidate = cand
+
+        return best_candidate
+
+    @classmethod
+    def _extract_from_pdf(cls, file_obj: BinaryIO) -> str:
+        doc = None
+        try:
+            doc = fitz.open(stream=file_obj.read(), filetype="pdf")
+
+            if doc.needs_pass:
+                raise ValueError("PDF file is protected by a password")
+
+            text_parts = []
+            total_pages = len(doc)
+
+            for page_num in range(total_pages):
                 try:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_parts.append(f"--- Страница {page_num} ---\n{page_text}")
-                except (AttributeError, KeyError, ValueError) as e:
-                    log.warning(f"Failed to extract text from page {page_num}: {e}")
+                    page = doc[page_num]
+                    page_text = page.get_text(
+                        "text",
+                        flags=(
+                            fitz.TEXT_PRESERVE_WHITESPACE
+                            | fitz.TEXT_PRESERVE_LIGATURES
+                            | fitz.TEXT_DEHYPHENATE
+                        ),
+                    )
+
+                    if page_text.strip():
+                        fixed_text = cls._fix_cyrillic_encoding(page_text)
+                        text_parts.append(f"--- Страница {page_num + 1} ---\n{fixed_text}")
+
+                except Exception as e:
+                    log.warning(f"Failed to extract text from page {page_num + 1}: {e}")
                     continue
 
             if not text_parts:
@@ -83,8 +133,13 @@ class FileService:
 
             return "\n\n".join(text_parts)
 
+        except ValueError:
+            raise
         except Exception as e:
             raise ValueError(f"Error reading PDF: {e!s}") from e
+        finally:
+            if doc is not None:
+                doc.close()
 
     @staticmethod
     def _extract_from_docx(file_obj: BinaryIO) -> str:
