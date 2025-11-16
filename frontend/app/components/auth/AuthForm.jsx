@@ -22,9 +22,15 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
-		if (mode === 'signup' && formData.password !== formData.confirmPassword) {
-			alert('Пароли не совпадают');
-			return;
+		if (mode === 'signup') {
+			if (formData.password.length < 8) {
+				alert('Пароль должен содержать минимум 8 символов');
+				return;
+			}
+			if (formData.password !== formData.confirmPassword) {
+				alert('Пароли не совпадают');
+				return;
+			}
 		}
 		if (mode === 'forgot-password') {
 			if (onForgotPassword) {
@@ -103,7 +109,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</CardTitle>
 					</div>
 				</CardHeader>
-
+				
 				<form onSubmit={handleSubmit}>
 					<CardContent className={styles.spaceY4}>
 						<div className={styles.spaceY2}>
@@ -118,7 +124,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 								className={styles.input}
 							/>
 						</div>
-
+						
 						<div className={styles.spaceY2}>
 							<Label htmlFor="password" className={styles.label}>Пароль</Label>
 							<div className={styles.relative}>
@@ -142,8 +148,8 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 						</div>
 
 						<div className={styles.flexBetween}>
-							<button
-								type="button"
+							<button 
+								type="button" 
 								className={styles.link}
 								onClick={() => onSwitchMode && onSwitchMode('forgot-password')}
 							>
@@ -206,14 +212,14 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 						</CardTitle>
 					</div>
 				</CardHeader>
-
+				
 				{!forgotPasswordSent ? (
 					<form onSubmit={handleSubmit}>
 						<CardContent className={styles.spaceY4}>
 							<CardDescription className={styles.textDark}>
 								Введите ваш email, и мы отправим вам инструкции по восстановлению пароля.
 							</CardDescription>
-
+							
 							<div className={styles.spaceY2}>
 								<Label htmlFor="forgot-email" className={styles.label}>Email</Label>
 								<Input
@@ -279,7 +285,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</CardTitle>
 				</div>
 			</CardHeader>
-
+			
 			<form onSubmit={handleSubmit}>
 				<CardContent className={styles.spaceY4}>
 					<div className={styles.spaceY2}>
@@ -307,17 +313,18 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 							className={`${styles.input} ${styles.inputSignup}`}
 						/>
 					</div>
-
+					
 					<div className={styles.spaceY2}>
 						<Label htmlFor="signup-password" className={styles.label}>Пароль</Label>
 						<div className={styles.relative}>
 							<Input
 								id="signup-password"
 								type={showPassword ? 'text' : 'password'}
-								placeholder="••••••••"
+								placeholder="Password"
 								value={formData.password}
 								onChange={(e) => handleChange('password', e.target.value)}
 								required
+								minLength={8}
 								className={`${styles.input} ${styles.inputSignup} ${styles.inputPassword}`}
 							/>
 							<button
@@ -328,31 +335,34 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 								{showPassword ? <EyeOff className={styles.iconSmall} /> : <Eye className={styles.iconSmall} />}
 							</button>
 						</div>
-					</div>
-
-				<div className={styles.spaceY2}>
-					<Label htmlFor="confirm-password" className={styles.label}>Подтвердите пароль</Label>
-					<div className={styles.relative}>
-						<Input
-							id="confirm-password"
-							type={showConfirmPassword ? 'text' : 'password'}
-							placeholder="••••••••"
-							value={formData.confirmPassword}
-							onChange={(e) => handleChange('confirmPassword', e.target.value)}
-							required
-							className={`${styles.input} ${styles.inputSignup} ${styles.inputPassword} ${formData.confirmPassword && (passwordsMatch ? styles.inputValid : styles.inputInvalid)}`}
-						/>
-						<button
-							type="button"
-							onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-							className={styles.passwordToggle}
-						>
-							{showConfirmPassword ? <EyeOff className={styles.iconSmall} /> : <Eye className={styles.iconSmall} />}
-						</button>
-						{passwordsMatch && (
-							<CheckCircle2 className={styles.checkIcon} />
+						{formData.password && formData.password.length > 0 && formData.password.length < 8 && (
+							<p className={styles.errorMessage}>Пароль должен содержать минимум 8 символов</p>
 						)}
 					</div>
+
+					<div className={styles.spaceY2}>
+						<Label htmlFor="confirm-password" className={styles.label}>Подтвердите пароль</Label>
+						<div className={styles.relative}>
+							<Input
+								id="confirm-password"
+								type={showConfirmPassword ? 'text' : 'password'}
+								placeholder="Сonfirm Password"
+								value={formData.confirmPassword}
+								onChange={(e) => handleChange('confirmPassword', e.target.value)}
+								required
+								className={`${styles.input} ${styles.inputSignup} ${styles.inputPassword} ${formData.confirmPassword && (passwordsMatch ? styles.inputValid : styles.inputInvalid)}`}
+							/>
+							<button
+								type="button"
+								onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+								className={styles.passwordToggle}
+							>
+								{showConfirmPassword ? <EyeOff className={styles.iconSmall} /> : <Eye className={styles.iconSmall} />}
+							</button>
+							{passwordsMatch && (
+								<CheckCircle2 className={styles.checkIcon} />
+							)}
+						</div>
 					{formData.confirmPassword && !passwordsMatch && (
 						<p className={styles.errorMessage}>Пароли не совпадают</p>
 					)}
@@ -391,3 +401,4 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 		</Card>
 	);
 }
+
