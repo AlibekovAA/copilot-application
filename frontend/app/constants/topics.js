@@ -50,8 +50,14 @@ export function extractTopicsFromHashtags(text) {
 }
 
 export function removeHashtagsFromText(text) {
-  return text
-    .replace(/^(#[^\s]+(?:\s+#[^\s]+)*)\s*/g, '')
-    .replace(/\s+(#[^\s]+(?:\s+#[^\s]+)*)$/g, '')
-    .trim();
+  let result = text;
+  
+  result = result.replace(/^(#[^\s]+(?:\s+#[^\s]+)*)\s*/g, '');
+  
+  const endHashtagMatch = result.match(/\s+(#[^\s]+(?:\s+#[^\s]+)*)$/);
+  if (endHashtagMatch) {
+    result = result.replace(/\s+(#[^\s]+(?:\s+#[^\s]+)*)$/g, '');
+  }
+  
+  return result;
 }

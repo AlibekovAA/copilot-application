@@ -718,14 +718,81 @@
   padding: 0.25rem 0.5rem !important;
   box-sizing: border-box;
   color: var(--foreground) !important;
+  border: 1px solid !important;
 }
 
 :global(.theme-dark) .modalCard :global(.input) {
   color: #ffffff !important;
+  background-color: #1a1a1a !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
 }
 
 :global(.theme-light) .modalCard :global(.input) {
   color: #000000 !important;
+  background-color: #e5e5e5 !important;
+  border: 1px solid #999999 !important;
+}
+
+.modalCard :global(label) {
+  margin-bottom: 0.375rem !important;
+  display: block;
+}
+
+.modalCard .passwordToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalCard .passwordToggle {
+  color: inherit;
+}
+
+.modalCard .passwordToggle svg {
+  color: inherit;
+  stroke: currentColor;
+}
+
+.modalCard .passwordToggle svg path,
+.modalCard .passwordToggle svg circle,
+.modalCard .passwordToggle svg line,
+.modalCard .passwordToggle svg polyline {
+  stroke: currentColor;
+  fill: none;
+}
+
+:global(.theme-dark) .modalCard .passwordToggle {
+  color: #ffffff !important;
+}
+
+:global(.theme-dark) .modalCard .passwordToggle svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+:global(.theme-dark) .modalCard .passwordToggle svg path,
+:global(.theme-dark) .modalCard .passwordToggle svg circle,
+:global(.theme-dark) .modalCard .passwordToggle svg line,
+:global(.theme-dark) .modalCard .passwordToggle svg polyline {
+  stroke: #ffffff !important;
+  fill: none !important;
+}
+
+:global(.theme-light) .modalCard .passwordToggle {
+  color: #000000 !important;
+}
+
+:global(.theme-light) .modalCard .passwordToggle svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+:global(.theme-light) .modalCard .passwordToggle svg path,
+:global(.theme-light) .modalCard .passwordToggle svg circle,
+:global(.theme-light) .modalCard .passwordToggle svg line,
+:global(.theme-light) .modalCard .passwordToggle svg polyline {
+  stroke: #000000 !important;
+  fill: none !important;
 }
 
 .modalCard form > div {
@@ -774,6 +841,19 @@
 .changePasswordButton:disabled {
   opacity: 1;
   transform: none;
+}
+
+:global(.theme-light) .changePasswordButton {
+  background: #9933ff !important;
+  color: white !important;
+}
+
+:global(.theme-light) .changePasswordButton::before {
+  background: #b366ff;
+}
+
+:global(.theme-light) .changePasswordButton:hover:not(:disabled) {
+  background: #b366ff !important;
 }
 
 .cancelButton {
