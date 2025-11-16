@@ -41,10 +41,28 @@ const getUserIdFromToken = (token) => {
   }
 };
 
+const getEmailFromToken = (token) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+    
+    const payload = parts[1];
+    const decoded = JSON.parse(atob(payload));
+    
+    return decoded.email || null;
+  } catch (error) {
+    console.error('Error decoding token for email:', error);
+    return null;
+  }
+};
+
 export function AuthProvider({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -85,12 +103,13 @@ export function AuthProvider({ children }) {
     document.cookie = 'auth_token=; path=/; max-age=0';
     setIsAuthenticated(false);
     setUserId(null);
+    setUserEmail(null);
     router.push('/auth');
   };
 
   return (
     <AuthContext.Provider
-      value={{ isAuthenticated, isLoading, userId, login, logout }}
+      value={{ isAuthenticated, isLoading, userId, userEmail, login, logout }}
     >
       {children}
     </AuthContext.Provider>

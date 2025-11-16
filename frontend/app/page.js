@@ -428,7 +428,7 @@ export default function Home() {
                 <div className={styles.headerDropdownHeader}>
                   <span className={styles.headerDropdownTitle}>Профиль</span>
                   <p className={styles.headerDropdownSubtitle}>
-                    user@example.com
+                    {userEmail || 'user@example.com'}
                   </p>
                 </div>
                 <div className={styles.headerDropdownItem} role="menuitem">
