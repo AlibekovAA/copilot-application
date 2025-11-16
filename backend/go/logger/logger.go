@@ -100,23 +100,23 @@ func (l *Logger) Warn(msg string)     { l.log(WARNING, msg) }
 func (l *Logger) Error(msg string)    { l.log(ERROR, msg) }
 func (l *Logger) Critical(msg string) { l.log(CRITICAL, msg) }
 
-func (l *Logger) Debugf(format string, args ...interface{}) {
+func (l *Logger) Debugf(format string, args ...any) {
 	l.log(DEBUG, fmt.Sprintf(format, args...))
 }
 
-func (l *Logger) Infof(format string, args ...interface{}) {
+func (l *Logger) Infof(format string, args ...any) {
 	l.log(INFO, fmt.Sprintf(format, args...))
 }
 
-func (l *Logger) Warnf(format string, args ...interface{}) {
+func (l *Logger) Warnf(format string, args ...any) {
 	l.log(WARNING, fmt.Sprintf(format, args...))
 }
 
-func (l *Logger) Errorf(format string, args ...interface{}) {
+func (l *Logger) Errorf(format string, args ...any) {
 	l.log(ERROR, fmt.Sprintf(format, args...))
 }
 
-func (l *Logger) Criticalf(format string, args ...interface{}) {
+func (l *Logger) Criticalf(format string, args ...any) {
 	l.log(CRITICAL, fmt.Sprintf(format, args...))
 }
 
@@ -125,7 +125,7 @@ func (l *Logger) Fatal(msg string) {
 	os.Exit(1)
 }
 
-func (l *Logger) Fatalf(format string, args ...interface{}) {
+func (l *Logger) Fatalf(format string, args ...any) {
 	l.log(CRITICAL, fmt.Sprintf(format, args...))
 	os.Exit(1)
 }

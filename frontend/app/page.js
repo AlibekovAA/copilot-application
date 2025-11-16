@@ -28,7 +28,7 @@ import { API_URL, getAuthHeaders } from './utils/apiHelpers';
 import styles from './page.module.css';
 
 export default function Home() {
-  const { isAuthenticated, isLoading, userId, logout } = useAuth();
+  const { isAuthenticated, isLoading, userId, userEmail, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);

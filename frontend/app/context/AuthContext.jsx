@@ -1,61 +1,17 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { JWT_TOKEN_MAX_AGE } from '../utils/apiHelpers';
+import { JWT_TOKEN_MAX_AGE, AUTH_API_URL } from '../utils/apiHelpers';
 
 const AuthContext = createContext(null);
 
-const getUserIdFromToken = (token) => {
-  if (!token || typeof token !== 'string') {
-    throw new Error('Invalid token: token must be a non-empty string');
-  }
-
-  const parts = token.split('.');
-  if (parts.length !== 3) {
-    throw new Error('Invalid JWT token format: expected 3 parts');
-  }
-
-  try {
-    const payload = parts[1];
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
-
-    const decoded = JSON.parse(jsonPayload);
-
-    if (!decoded.user_id) {
-      throw new Error('Token does not contain user_id');
-    }
-
-    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-      throw new Error('Token has expired');
-    }
-
-    return decoded.user_id;
-  } catch (error) {
-    throw new Error(`Failed to decode token: ${error.message}`);
-  }
+const setAuthCookie = (token) => {
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  document.cookie = `auth_token=${token}; path=/; max-age=${JWT_TOKEN_MAX_AGE}${isSecure ? '; secure' : ''}; samesite=strict`;
 };
 
-const getEmailFromToken = (token) => {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      return null;
-    }
-    
-    const payload = parts[1];
-    const decoded = JSON.parse(atob(payload));
-    
-    return decoded.email || null;
-  } catch (error) {
-    console.error('Error decoding token for email:', error);
-    return null;
-  }
+const clearAuthCookie = () => {
+  document.cookie = 'auth_token=; path=/; max-age=0';
 };
 
 export function AuthProvider({ children }) {
@@ -68,39 +24,54 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
     if (token) {
-      try {
-        const id = getUserIdFromToken(token);
-        setIsAuthenticated(true);
-        setUserId(id);
-        const isSecure = window.location.protocol === 'https:';
-        document.cookie = `auth_token=${token}; path=/; max-age=${JWT_TOKEN_MAX_AGE}${isSecure ? '; secure' : ''}; samesite=strict`;
-      } catch (error) {
-        console.error('Invalid token on mount:', error);
-        localStorage.removeItem('auth_token');
-        document.cookie = 'auth_token=; path=/; max-age=0';
-      }
+
+      fetch(`${AUTH_API_URL}/api/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error('Invalid token');
+          }
+          return response.json();
+        })
+        .then((data) => {
+          setIsAuthenticated(true);
+          setUserId(data.user_id);
+          setUserEmail(data.email);
+          setAuthCookie(token);
+        })
+        .catch((error) => {
+          console.error('Invalid token on mount:', error);
+          localStorage.removeItem('auth_token');
+          clearAuthCookie();
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
-  const login = (token) => {
+  const login = (token, user) => {
     try {
-      const id = getUserIdFromToken(token);
       localStorage.setItem('auth_token', token);
-      const isSecure = window.location.protocol === 'https:';
-      document.cookie = `auth_token=${token}; path=/; max-age=${JWT_TOKEN_MAX_AGE}${isSecure ? '; secure' : ''}; samesite=strict`;
+      setAuthCookie(token);
       setIsAuthenticated(true);
-      setUserId(id);
+      setUserId(user.id);
+      setUserEmail(user.email);
       router.push('/');
     } catch (error) {
-      console.error('Failed to login with token:', error);
+      console.error('Failed to login:', error);
       throw error;
     }
   };
 
   const logout = () => {
     localStorage.removeItem('auth_token');
-    document.cookie = 'auth_token=; path=/; max-age=0';
+    clearAuthCookie();
     setIsAuthenticated(false);
     setUserId(null);
     setUserEmail(null);

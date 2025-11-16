@@ -35,8 +35,8 @@ function AuthPageContent() {
     try {
       setError(null);
       setIsSubmitting(true);
-      const token = await apiLogin(data.email, data.password);
-      login(token);
+      const { token, user } = await apiLogin(data.email, data.password);
+      login(token, user);
     } catch (error) {
       setError(error.message || 'Ошибка входа');
     } finally {
@@ -48,8 +48,12 @@ function AuthPageContent() {
     try {
       setError(null);
       setIsSubmitting(true);
-      const token = await apiRegister(data.name, data.email, data.password);
-      login(token);
+      const { token, user } = await apiRegister(
+        data.name,
+        data.email,
+        data.password,
+      );
+      login(token, user);
     } catch (error) {
       setError(error.message || 'Ошибка регистрации');
     } finally {
