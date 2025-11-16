@@ -32,7 +32,8 @@ export function QuestionPanel({ onSubmit, isLoading }) {
 
   const handleSubmit = () => {
     if ((question.trim() || files.length > 0) && !isLoading) {
-      onSubmit(question, files);
+      const selectedTopic = activeTopics.length > 0 ? activeTopics[0] : null;
+      onSubmit(question, files, selectedTopic);
       setQuestion('');
       setActiveTopics([]);
       setFiles([]);
@@ -58,13 +59,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     setActiveTopics(topics);
 
     const questionWithoutHashtags = removeHashtagsFromText(question);
-
-    if (topics.length > 0) {
-      const hashtag = `#${topics[0]}`;
-      setQuestion(questionWithoutHashtags ? `${questionWithoutHashtags} ${hashtag}` : hashtag);
-    } else {
-      setQuestion(questionWithoutHashtags);
-    }
+    setQuestion(questionWithoutHashtags);
 
     setTimeout(() => {
       isUpdatingTopicRef.current = false;
@@ -78,8 +73,11 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     updateTextareaHeight();
 
     if (!isUpdatingTopicRef.current) {
-      const foundTopics = extractTopicsFromHashtags(newValue);
-      setActiveTopics(foundTopics.length > 0 ? [foundTopics[0]] : []);
+      const questionWithoutHashtags = removeHashtagsFromText(newValue);
+      if (questionWithoutHashtags !== newValue) {
+        setQuestion(questionWithoutHashtags);
+      }
+      setActiveTopics([]);
     }
   }, [updateTextareaHeight]);
 

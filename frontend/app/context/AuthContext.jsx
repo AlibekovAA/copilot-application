@@ -5,7 +5,21 @@ import { useRouter } from 'next/navigation';
 const AuthContext = createContext(null);
 
 const getUserIdFromToken = (token) => {
-  return 1;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('Invalid JWT token format');
+      return 1;
+    }
+    
+    const payload = parts[1];
+    const decoded = JSON.parse(atob(payload));
+    
+    return decoded.user_id || decoded.userId || 1;
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return 1;
+  }
 };
 
 export function AuthProvider({ children }) {

@@ -134,7 +134,7 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
                   {content}
                   {showTypingIndicator && <span className={styles.typingCaret} />}
                 </p>
-                {!showTypingIndicator && content && isAssistant && (
+                {!showTypingIndicator && content && (
                   <button
                     type="button"
                     onClick={() => handleCopy(message.id, message.content)}
@@ -142,7 +142,7 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
                       styles.copyButton,
                       copiedMessageId === message.id && styles.copyButtonCopied,
                     )}
-                    aria-label={copiedMessageId === message.id ? 'Скопировано' : 'Копировать ответ'}
+                    aria-label={copiedMessageId === message.id ? 'Скопировано' : isAssistant ? 'Копировать ответ' : 'Копировать сообщение'}
                   >
                     {copiedMessageId === message.id ? <Check className={styles.copyIcon} /> : <Copy className={styles.copyIcon} />}
                   </button>
