@@ -14,15 +14,28 @@ import {
   createAssistantMessage,
   getSessionTitle,
 } from './utils/messageHelpers';
-import { extractDomainFromQuestion } from './constants/topics';
+import { getDomainFromTopic } from './constants/topics';
 import { ScrollArea } from './components/ui/scroll-area';
-import { Plus } from './components/copilot/icons';
+import { Plus, Eye, EyeOff, X } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
 import { Toggle } from './components/ui/toggle';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Button } from './components/ui/button';
+import { changePassword as apiChangePassword } from './utils/authApi';
 import styles from './page.module.css';
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, logout } = useAuth();
+
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }),
+    };
+  };
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const initialSession = useMemo(() => createSession(), []);
@@ -34,6 +47,13 @@ export default function Home() {
     fullText: '',
   });
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [changePasswordData, setChangePasswordData] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [changePasswordError, setChangePasswordError] = useState(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
 
   useEffect(() => {
@@ -55,6 +75,9 @@ export default function Home() {
           process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         const response = await fetch(
           `${apiUrl}/conversations?user_id=${userId}&limit=50&offset=0`,
+          {
+            headers: getAuthHeaders(),
+          },
         );
 
         if (!response.ok) {
@@ -115,7 +138,7 @@ export default function Home() {
     });
   }, []);
 
-  const handleSubmitQuestion = async (question, files = []) => {
+  const handleSubmitQuestion = async (question, files = [], selectedTopic = null) => {
     if (!question.trim() && files.length === 0) {
       return;
     }
@@ -148,8 +171,8 @@ export default function Home() {
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-        const domain = extractDomainFromQuestion(question);
-        const cleanedQuestion = question.replace(/^#[^\s]+\s*/, '').trim();
+        const domain = selectedTopic ? getDomainFromTopic(selectedTopic) : 'general';
+        const cleanedQuestion = question.trim();
 
         const currentSession = sessions.find((s) => s.id === sessionId);
         let conversationId = currentSession?.conversationId;
@@ -159,9 +182,7 @@ export default function Home() {
             `${apiUrl}/conversations?user_id=${userId}`,
             {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: getAuthHeaders(),
               body: JSON.stringify({
                 title: 'Новый диалог',
                 business_context: domain,
@@ -184,9 +205,7 @@ export default function Home() {
 
         const response = await fetch(`${apiUrl}/chat`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             user_id: userId,
             conversation_id: conversationId,
@@ -270,6 +289,9 @@ export default function Home() {
 
         const response = await fetch(
           `${apiUrl}/conversations/${session.conversationId}/messages?user_id=${userId}`,
+          {
+            headers: getAuthHeaders(),
+          },
         );
 
         if (response.ok) {
@@ -326,6 +348,26 @@ export default function Home() {
 
   const closeHeaderMenu = () => {
     setIsHeaderMenuOpen(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
+      setChangePasswordError('Новые пароли не совпадают');
+      return;
+    }
+
+    try {
+      setChangePasswordError(null);
+      setIsChangingPassword(true);
+      await apiChangePassword(changePasswordData.oldPassword, changePasswordData.newPassword);
+      setIsChangePasswordOpen(false);
+      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      alert('Пароль успешно изменен');
+    } catch (error) {
+      setChangePasswordError(error.message || 'Ошибка смены пароля');
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const handleHeaderThemeToggle = (checked) => {
@@ -401,6 +443,17 @@ export default function Home() {
                   type="button"
                   onClick={() => {
                     closeHeaderMenu();
+                    setIsChangePasswordOpen(true);
+                  }}
+                  className={styles.headerDropdownItem}
+                  role="menuitem"
+                >
+                  Сменить пароль
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeHeaderMenu();
                     logout();
                   }}
                   className={styles.headerDropdownItemDestructive}
@@ -469,6 +522,124 @@ export default function Home() {
           </main>
         </div>
       </div>
+
+      {isChangePasswordOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIsChangePasswordOpen(false)}>
+          <Card className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <CardTitle>Сменить пароль</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangePasswordOpen(false);
+                    setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                    setChangePasswordError(null);
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
+                >
+                  <X style={{ width: '1.5rem', height: '1.5rem' }} />
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="old-password">Текущий пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="old-password"
+                      type={showOldPassword ? 'text' : 'password'}
+                      value={changePasswordData.oldPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showOldPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="new-password">Новый пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="new-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={changePasswordData.newPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showNewPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <Label htmlFor="confirm-password">Подтвердите новый пароль</Label>
+                  <div style={{ position: 'relative' }}>
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={changePasswordData.confirmPassword}
+                      onChange={(e) => setChangePasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      required
+                      style={{ width: '100%', height: '1.75rem', fontSize: '0.875rem', padding: '0.25rem 0.5rem', paddingRight: '2.5rem', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      {showConfirmPassword ? <EyeOff style={{ width: '1.25rem', height: '1.25rem' }} /> : <Eye style={{ width: '1.25rem', height: '1.25rem' }} />}
+                    </button>
+                  </div>
+                </div>
+
+                {changePasswordError && (
+                  <div style={{ color: '#ef4444', marginBottom: '0.75rem', fontSize: '0.875rem' }}>
+                    {changePasswordError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsChangePasswordOpen(false);
+                      setChangePasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                      setChangePasswordError(null);
+                    }}
+                    disabled={isChangingPassword}
+                    className={styles.cancelButton}
+                  >
+                    Отмена
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className={styles.changePasswordButton}
+                  >
+                    {isChangingPassword ? 'Смена...' : 'Сменить пароль'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

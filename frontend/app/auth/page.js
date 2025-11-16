@@ -1,9 +1,10 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { AuthForm } from '../components/auth/AuthForm';
 import { BackgroundBlobs } from '../components/ui/BackgroundBlobs';
 import { useAuth } from '../context/AuthContext';
+import { login as apiLogin, register as apiRegister } from '../utils/authApi';
 import styles from './page.module.css';
 
 function AuthPageContent() {
@@ -11,6 +12,8 @@ function AuthPageContent() {
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   const { login, isAuthenticated, isLoading } = useAuth();
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -23,18 +26,35 @@ function AuthPageContent() {
   }
 
   const setAction = (next) => {
+    setError(null);
     const query = next ? `?action=${next}` : '';
     router.push(`/auth${query}`, { scroll: false });
   };
 
-  const handleLogin = (data) => {
-    const token = `mock_token_${Date.now()}`;
-    login(token);
+  const handleLogin = async (data) => {
+    try {
+      setError(null);
+      setIsSubmitting(true);
+      const token = await apiLogin(data.email, data.password);
+      login(token);
+    } catch (error) {
+      setError(error.message || 'Ошибка входа');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSignup = (data) => {
-    const token = `mock_token_${Date.now()}`;
-    login(token);
+  const handleSignup = async (data) => {
+    try {
+      setError(null);
+      setIsSubmitting(true);
+      const token = await apiRegister(data.name, data.email, data.password);
+      login(token);
+    } catch (error) {
+      setError(error.message || 'Ошибка регистрации');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleForgotPassword = (email) => {
@@ -51,6 +71,8 @@ function AuthPageContent() {
           onSwitchMode={setAction}
           onSubmit={action === 'login' ? handleLogin : handleSignup}
           onForgotPassword={handleForgotPassword}
+          error={error}
+          isLoading={isSubmitting}
         />
       </div>
     </div>

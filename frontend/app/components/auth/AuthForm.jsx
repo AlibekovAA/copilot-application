@@ -8,7 +8,7 @@ import { Logo } from './Logo';
 import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff, CheckCircle2, Send } from '../copilot/icons';
 import styles from './auth.module.css';
 
-export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onForgotPassword }) {
+export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onForgotPassword, error, isLoading }) {
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -151,13 +151,20 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 							</button>
 						</div>
 
+						{error && (
+							<div className={styles.errorMessage}>
+								{error}
+							</div>
+						)}
+
 						<Button
 							type="submit"
 							className={styles.buttonGradient}
 							size="default"
+							disabled={isLoading}
 						>
 							<LogIn className={`${styles.icon} ${styles.iconMargin}`} />
-							Войти
+							{isLoading ? 'Вход...' : 'Войти'}
 						</Button>
 					</CardContent>
 
@@ -346,19 +353,26 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 								<CheckCircle2 className={styles.checkIcon} />
 							)}
 						</div>
-						{formData.confirmPassword && !passwordsMatch && (
-							<p className={styles.errorMessage}>Пароли не совпадают</p>
-						)}
-					</div>
+					{formData.confirmPassword && !passwordsMatch && (
+						<p className={styles.errorMessage}>Пароли не совпадают</p>
+					)}
+				</div>
 
-					<Button
-						type="submit"
-						className={styles.buttonGradient}
-						size="default"
-					>
-						<UserPlus className={`${styles.icon} ${styles.iconMargin}`} />
-						Зарегистрироваться
-					</Button>
+				{error && (
+					<div className={styles.errorMessage}>
+						{error}
+					</div>
+				)}
+
+				<Button
+					type="submit"
+					className={styles.buttonGradient}
+					size="default"
+					disabled={isLoading}
+				>
+					<UserPlus className={`${styles.icon} ${styles.iconMargin}`} />
+					{isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+				</Button>
 				</CardContent>
 
 					<CardFooter className={`${styles.flexCol} ${styles.spaceY2} ${styles.pt6}`}>
