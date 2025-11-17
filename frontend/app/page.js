@@ -7,6 +7,7 @@ import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
+import { LoadingScreen } from './components/ui/LoadingScreen';
 import {
   createSession,
   createUserMessage,
@@ -54,6 +55,7 @@ export default function Home() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
   const headerMenuRef = useRef(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -78,6 +80,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
+      setIsRedirecting(true);
       router.push('/auth');
     }
   }, [isAuthenticated, isLoading, router]);
@@ -495,16 +498,20 @@ export default function Home() {
     [sessions],
   );
 
-  if (isLoading) {
+  if (isLoading || !isAuthenticated || isRedirecting) {
     return (
-      <div className={styles.loadingScreen}>
-        <p>Загрузка...</p>
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        zIndex: 9999,
+        backgroundColor: '#0f0f0f'
+      }}>
+        <LoadingScreen />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (
@@ -596,6 +603,7 @@ export default function Home() {
                     messages={activeSession.messages}
                     typingState={typingState}
                     onTypingComplete={handleTypingComplete}
+                    isLoadingAnswer={isLoadingAnswer}
                   />
                 ) : (
                   <div className={styles.emptyState}>

@@ -61,6 +61,11 @@ body {
   color: var(--app-text-primary);
   font-family: Arial, Helvetica, sans-serif;
   transition: background-color 0.4s ease, color 0.4s ease;
+  background-color: #0f0f0f;
+}
+
+html {
+  background-color: #0f0f0f;
 }
 
 html,

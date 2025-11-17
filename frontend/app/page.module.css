@@ -619,12 +619,12 @@
 .questionPanelContent {
   margin-top: auto;
   position: sticky;
-  bottom: 0;
+  bottom: 1.5rem;
   background: transparent;
   z-index: 25;
-  padding-bottom: 1rem;
+  padding-bottom: 2rem;
   padding-top: 0;
-  margin-bottom: -1rem;
+  margin-bottom: 1.5rem;
   width: 100%;
   margin-left: 0;
   margin-right: 0;
@@ -649,13 +649,6 @@
   100% {
     transform: translate(0px, 0px) scale(1);
   }
-}
-
-.loadingScreen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
 }
 
 .iconSmall {

@@ -22,8 +22,24 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            body { 
+              background-color: #0f0f0f !important; 
+              color: #f3f4f6 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+            }
+            html { 
+              background-color: #0f0f0f !important;
+            }
+          `
+        }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ backgroundColor: '#0f0f0f', margin: 0, padding: 0 }}
       >
         <ThemeProvider>
           <AuthProvider>
