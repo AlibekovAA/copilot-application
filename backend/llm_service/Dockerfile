@@ -31,7 +31,7 @@ COPY --from=builder /usr/local/bin/uvicorn /usr/local/bin/uvicorn
 
 COPY app/ /app/app/
 
-RUN mkdir -p /app/logs /app/uploads && \
+RUN mkdir -p /app/logs && \
     chown -R appuser:appuser /app
 
 USER appuser

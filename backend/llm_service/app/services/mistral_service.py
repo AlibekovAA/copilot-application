@@ -1,7 +1,7 @@
 from typing import Any
 
 import httpx
-from fastapi import status
+from fastapi import HTTPException, status
 
 from app.core import get_settings
 from app.utils import log
@@ -104,7 +104,10 @@ class MistralService:
             if status_code == status.HTTP_401_UNAUTHORIZED:
                 raise ValueError("Invalid API key Mistral AI") from e
             if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
-                raise ValueError("Request limit exceeded Mistral AI") from e
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Request limit exceeded for the configured Mistral model. Please retry later.",
+                ) from e
             if status_code == status.HTTP_400_BAD_REQUEST:
                 raise ValueError(f"Error in request to Mistral AI: {error_text}") from e
 

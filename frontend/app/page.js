@@ -28,6 +28,40 @@ import { API_URL, getAuthHeaders } from './utils/apiHelpers';
 import { useToast } from './components/ui/toast';
 import styles from './page.module.css';
 
+const translateErrorMessage = (message) => {
+  if (!message) return '';
+  return message.replace(
+    /string should have at most 10000 characters/gi,
+    'Сообщение должно содержать не более 10 000 символов.',
+  );
+};
+
+const formatErrorDetail = (detail) => {
+  if (!detail) return '';
+  if (typeof detail === 'string') {
+    return translateErrorMessage(detail);
+  }
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        const field = Array.isArray(item.loc) ? item.loc.join('.') : 'field';
+        const message = item.msg || item.message || 'Некорректное значение';
+        return translateErrorMessage(`${field}: ${message}`);
+      })
+      .join('\n');
+  }
+  if (typeof detail === 'object') {
+    if (detail.message) {
+      return translateErrorMessage(detail.message);
+    }
+    if (detail.error) {
+      return translateErrorMessage(detail.error);
+    }
+    return translateErrorMessage(JSON.stringify(detail));
+  }
+  return translateErrorMessage(String(detail));
+};
+
 export default function Home() {
   const { isAuthenticated, isLoading, userId, userEmail, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -278,10 +312,27 @@ export default function Home() {
         body: formData,
       });
 
+      if (response.status === 429) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          formatErrorDetail(errorData.detail) ||
+            'Превышен лимит запросов к языковой модели. Попробуйте позже.',
+        );
+      }
+
+      if (response.status === 422) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          formatErrorDetail(errorData.detail) ||
+            'Некорректные данные запроса. Проверьте сообщение и попробуйте снова.',
+        );
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(
-          errorData.detail || `HTTP error! status: ${response.status}`,
+          formatErrorDetail(errorData.detail) ||
+            `HTTP error! status: ${response.status}`,
         );
       }
 
@@ -301,8 +352,16 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error generating answer:', error);
+      const mistralLimitMessage =
+        'Request limit exceeded for the configured Mistral model. Please retry later.';
+
       const errorMessage =
-        'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+        error?.message === mistralLimitMessage
+          ? 'Достигнут лимит запросов к модели. Подождите и попробуйте снова.'
+          : error?.message ||
+            'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+
+      toast.error(errorMessage);
       const assistantMessage = createAssistantMessage(errorMessage);
 
       updateSession(sessionId, (session) => ({
@@ -500,15 +559,17 @@ export default function Home() {
 
   if (isLoading || !isAuthenticated || isRedirecting) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        backgroundColor: '#0f0f0f'
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          backgroundColor: '#0f0f0f',
+        }}
+      >
         <LoadingScreen />
       </div>
     );
