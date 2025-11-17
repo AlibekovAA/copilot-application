@@ -7,14 +7,13 @@
 - **[Go-Authentication ](backend/go/README.md)** - микросервис для авторизации
 - **PostgreSQL** - база данных для хранения диалогов и сообщений
 
-
 ```mermaid
 graph TD
   A[Frontend] -->|Auth| G[Go Auth/API login-register]
   A -->|JWT| F[FastAPI App]
   G --> |INSERT/SELECT| D[(PostgreSQL)]
   F -->|POST /chat| L[LLM API]
-  F -->|POST /chat/file| T[OCR and LLM background]
+  F -->|POST /chat (files optional)| T[OCR inline]
   F -->|INSERT/SELECT| D[(PostgreSQL)]
   A -->|GET /conversations/:id/messages| F
 ```
@@ -28,7 +27,7 @@ graph TD
 ### Поток 2: Сообщение с файлами
 
 ```
-Клиент вызывает POST /chat/file (multipart UploadFile) с conversation_id; FastAPI читает UploadFile, кладёт байты/временный путь, возвращает 202 Accepted с message_id, и запускает BackgroundTask: OCR → создать user‑message с распознанным текстом → вызвать LLM → создать assistant‑message
+Клиент вызывает POST /chat (multipart form-data) с conversation_id и файлами; FastAPI валидирует расширения, извлекает текст (PDF/DOCX/TXT/MD), добавляет содержимое к сообщению и синхронно вызывает LLM. После получения ответа оба сообщения сохраняются в PostgreSQL и клиент получает готовый ответ.
 ```
 
 ### Поток 3: История диалога
@@ -46,11 +45,9 @@ graph TD
 ### Поток 5: Как выдержать нагрузку
 
 ```
-Делаем OCR/LLM в BackgroundTasks с быстрым ответом 202, чтобы воркеры не держали соединение и не занимали пул при долгих операциях, разгружая фронт от таймаутов.​
+OCR/LLM выполняются в основном обработчике /chat, поэтому важно контролировать размеры файлов и таймауты (ограничения настроены в FileService). При необходимости можно вынести обработку в фоновые задачи или очередь — код легко расширяется.
 
-Храним UploadFile во временном файле или читаем bytes в обработчике и передаем путь/байты в BackgroundTask, потому что после ответа объект UploadFile может быть закрыт; это снижает ошибки и повторную работу.​
-
-Масштабируем FastAPI горизонтально (несколько реплик под балансировщиком) и используем одну внешнюю PostgreSQL; фоновые задачи привязаны к каждому инстансу.
+Перед обработкой файлы читаются в память и текст урезается до 50k символов, что защищает БД и LLM от перегруза. FastAPI можно масштабировать горизонтально под балансировщиком; все реплики используют общую PostgreSQL.
 ```
 
 ## Быстрый старт
@@ -68,6 +65,27 @@ cp .env.example .env
 
 # Запустить все сервисы
 make up
+```
+
+### Запуск через docker-compose напрямую
+
+```bash
+# Клонировать репозиторий
+git clone <repo-url>
+cd copilot_alpha
+
+# Создать .env файл
+cp .env.example .env
+# Заполнить переменные (MISTRAL_API_KEY и др.)
+
+# Поднять сервисы без make
+docker-compose up --build
+```
+
+### Остановка docker-compose
+
+```bash
+docker-compose down
 ```
 
 Сервисы будут доступны:

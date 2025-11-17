@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ConversationRepoDep, MessageRepoDep
@@ -6,7 +6,7 @@ from app.core import get_db
 from app.middleware import get_current_user_id
 from app.prompts import get_system_prompt
 from app.schemas import ChatResponse
-from app.services import ConversationService, FileProcessingService
+from app.services import ConversationService, FileProcessingService, MistralService
 from app.utils import handle_api_error, log
 
 
@@ -40,7 +40,7 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
         if files:
             processed_files = await FileProcessingService.process_files(files)
 
-        history = await message_repo.get_last_messages(actual_conversation_id, limit=10)
+        history = await message_repo.get_last_messages(actual_conversation_id, limit=3)
         is_first_message = len(history) == 0
 
         system_prompt = get_system_prompt(domain)
@@ -55,10 +55,11 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
             enriched_prompt = f"{system_prompt}\n\n{full_message}"
             log.info(f"First message - enriched with system prompt for domain: {domain}")
 
-        response_text = await request.app.state.mistral_service.generate(
+        response_text = await _generate_with_history_retry(
+            mistral_service=request.app.state.mistral_service,
             prompt=full_message,
             system_prompt=system_prompt,
-            history_messages=history,
+            history=history,
         )
 
         log.info(f"Response generated: {len(response_text)} chars")
@@ -90,3 +91,40 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
     except Exception as e:
         await db.rollback()
         raise handle_api_error(e, "chat endpoint") from e
+
+
+async def _generate_with_history_retry(
+    mistral_service: MistralService,
+    prompt: str,
+    system_prompt: str,
+    history: list[dict[str, str]],
+) -> str:
+    history_variants: list[list[dict[str, str]]] = []
+
+    if history:
+        history_variants.append(history)
+        if len(history) > 1:
+            history_variants.append(history[-1:])
+
+    history_variants.append([])
+
+    last_error: HTTPException | None = None
+
+    for variant in history_variants:
+        try:
+            return await mistral_service.generate(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                history_messages=variant,
+            )
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS and variant:
+                log.warning(f"Mistral returned 429 with {len(variant)} history messages, retrying with shorter context")
+                last_error = exc
+                continue
+            raise
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("Failed to generate response with available history variants")
