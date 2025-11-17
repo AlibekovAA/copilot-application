@@ -33,6 +33,46 @@
   background: linear-gradient(to right, #ef3124, #ff6b35);
 }
 
+.submitButtonInline {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.5rem;
+  background: linear-gradient(to right, #9933ff, #ef3124, #ff6b35);
+  color: white;
+  border: none;
+  transition: all 0.3s;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+.submitButtonInline:hover:not(:disabled) {
+  background: linear-gradient(to right, #8822ee, #de2013, #ee5a25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(153, 51, 255, 0.4);
+}
+
+.submitButtonInline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: linear-gradient(to right, #9933ff, #ef3124, #ff6b35);
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  height: auto;
+}
+
+:global(.theme-light) .submitButtonInline {
+  background: linear-gradient(to right, #ef3124, #ff6b35);
+}
+
+:global(.theme-light) .submitButtonInline:hover:not(:disabled) {
+  background: linear-gradient(to right, #de2013, #ee5a25);
+  box-shadow: 0 4px 12px -2px rgba(239, 49, 36, 0.4);
+}
+
+:global(.theme-light) .submitButtonInline:disabled {
+  background: linear-gradient(to right, #ef3124, #ff6b35);
+}
+
 .fileButton {
   transition: all 0.3s ease;
   border: none;
@@ -76,6 +116,13 @@
   align-items: stretch;
   width: 100%;
   box-sizing: border-box;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.textareaContainer {
+  position: relative;
+  width: 100%;
 }
 
 .textarea {
@@ -84,16 +131,23 @@
   resize: none;
   padding-right: 2.5rem;
   padding-bottom: 4rem;
+  padding-top: 0.75rem;
   overflow-y: auto;
   height: auto;
   line-height: 1.5;
   justify-content: center;
 }
 
+.textareaWrapper:has(.filesListInline) .textarea {
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
 .attachButton {
   position: absolute;
   right: 0.75rem;
-  top: 0.75rem;
+  top: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,7 +157,8 @@
   color: #9ca3af;
   cursor: pointer;
   transition: color 0.2s ease, transform 0.2s ease;
-  z-index: 10;
+  z-index: 30;
+  pointer-events: auto;
 }
 
 .attachButton:hover:not(:disabled) {
@@ -135,6 +190,118 @@
   gap: 0.5rem;
 }
 
+.filesListInline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  padding-right: 3rem;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+  background: rgba(17, 24, 39, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+.textareaWrapper:not(:has(.validationError)) .filesListInline {
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+:global(.theme-light) .filesListInline {
+  background: rgba(249, 250, 251, 0.5);
+  border-bottom-color: rgba(229, 231, 235, 0.5);
+}
+
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.625rem;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid rgba(55, 65, 81, 0.4);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+  max-width: 100%;
+}
+
+.fileChip:hover {
+  background: rgba(31, 41, 55, 0.8);
+  border-color: var(--file-color, #9ca3af);
+}
+
+:global(.theme-light) .fileChip {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(229, 231, 235, 0.6);
+}
+
+:global(.theme-light) .fileChip:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: var(--file-color, #9ca3af);
+}
+
+.fileChipIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.fileChipName {
+  color: #e5e7eb;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
+  font-weight: 500;
+}
+
+:global(.theme-light) .fileChipName {
+  color: #1f2937;
+}
+
+.fileChipSize {
+  color: #9ca3af;
+  font-size: 0.6875rem;
+  flex-shrink: 0;
+  font-weight: 400;
+}
+
+:global(.theme-light) .fileChipSize {
+  color: #6b7280;
+}
+
+.removeFileChipButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin-left: 0.125rem;
+}
+
+.removeFileChipButton:hover:not(:disabled) {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.removeFileChipButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.removeFileChipIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
 .filesHeader {
   display: flex;
   align-items: center;
@@ -155,73 +322,219 @@
   color: #f87171;
   background-color: rgba(248, 113, 113, 0.1);
   border: 1px solid rgba(248, 113, 113, 0.2);
-  border-radius: 0.375rem;
-  padding: 0.5rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  padding-right: 3rem;
+  margin-bottom: 0;
+  position: relative;
+  z-index: 1;
+  border-bottom: 1px solid rgba(248, 113, 113, 0.2);
 }
 
 .filesList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fileItem {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  background-color: rgba(31, 41, 55, 0.5);
-  border: 1px solid #374151;
-  border-radius: 0.375rem;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(17, 24, 39, 0.9));
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 0.75rem;
   font-size: 0.875rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.fileItem::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--file-color, #9ca3af), transparent);
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.fileItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border-color: rgba(153, 51, 255, 0.3);
+  background: linear-gradient(135deg, rgba(31, 41, 55, 0.9), rgba(17, 24, 39, 1));
+}
+
+.fileItem:hover::before {
+  opacity: 1;
+}
+
+.fileIconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.15), rgba(156, 163, 175, 0.05));
+  border: 1px solid rgba(156, 163, 175, 0.2);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.fileItem:hover .fileIconWrapper {
+  transform: scale(1.05);
+}
+
+.fileIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--file-color, #9ca3af);
+  transition: all 0.3s ease;
+}
+
+.fileItem:hover .fileIcon {
+  transform: scale(1.1);
 }
 
 .fileItemContent {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   flex: 1;
   min-width: 0;
 }
 
-.fileIcon {
-  width: 1rem;
-  height: 1rem;
-  color: #9ca3af;
-  flex-shrink: 0;
+.fileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .fileName {
-  color: #d1d5db;
+  color: #e5e7eb;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.fileItem:hover .fileName {
+  color: #f9fafb;
 }
 
 .fileSize {
-  color: #6b7280;
+  color: #9ca3af;
   font-size: 0.75rem;
-  flex-shrink: 0;
+  font-weight: 400;
+  transition: color 0.3s ease;
+}
+
+.fileItem:hover .fileSize {
+  color: #d1d5db;
 }
 
 .removeFileButton {
   color: #9ca3af;
-  transition: color 0.2s;
+  transition: all 0.3s ease;
   flex-shrink: 0;
-  padding: 0.25rem;
-  background: none;
-  border: none;
+  padding: 0.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.5rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
 }
 
-.removeFileButton:hover {
+.removeFileButton:hover:not(:disabled) {
   color: #f87171;
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: scale(1.1);
+}
+
+.removeFileButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .removeFileIcon {
   width: 1rem;
   height: 1rem;
+}
+
+:global(.theme-light) .fileItem {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(249, 250, 251, 0.95));
+  border-color: rgba(229, 231, 235, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+:global(.theme-light) .fileItem:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1), rgba(249, 250, 251, 1));
+  border-color: rgba(153, 51, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+:global(.theme-light) .fileIconWrapper {
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.1), rgba(156, 163, 175, 0.05));
+  border-color: rgba(156, 163, 175, 0.3);
+}
+
+:global(.theme-light) .fileItem:hover .fileIconWrapper {
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.15), rgba(156, 163, 175, 0.08));
+  border-color: rgba(156, 163, 175, 0.4);
+}
+
+:global(.theme-light) .fileName {
+  color: #1f2937;
+}
+
+:global(.theme-light) .fileItem:hover .fileName {
+  color: #111827;
+}
+
+:global(.theme-light) .fileSize {
+  color: #6b7280;
+}
+
+:global(.theme-light) .fileItem:hover .fileSize {
+  color: #4b5563;
 }
 
 .buttonsInside {

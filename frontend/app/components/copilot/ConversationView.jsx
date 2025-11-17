@@ -11,7 +11,7 @@ import styles from './ConversationView.module.css';
 const USER_LABEL = 'Вы';
 const ASSISTANT_LABEL = 'AI';
 
-export function ConversationView({ messages, typingState, onTypingComplete }) {
+export function ConversationView({ messages, typingState, onTypingComplete, isLoadingAnswer }) {
   const bottomRef = useRef(null);
   const [animatedText, setAnimatedText] = useState('');
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -142,6 +142,10 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
 
   const getMessageLabel = (role) => (role === 'user' ? USER_LABEL : ASSISTANT_LABEL);
 
+  const showThinkingIndicator = isLoadingAnswer && messages.length > 0 && 
+    messages[messages.length - 1]?.role === 'user' &&
+    !messages.some(m => m.role === 'assistant' && m.id === typingState.messageId);
+
   return (
     <div className={styles.conversationList}>
       {messages.map(message => {
@@ -201,6 +205,23 @@ export function ConversationView({ messages, typingState, onTypingComplete }) {
           </Card>
         );
       })}
+      {showThinkingIndicator && (
+        <Card className={cn(styles.card, styles.cardAssistant, styles.cardLeft, styles.thinkingCard)}>
+          <div className={styles.messageContent}>
+            <div className={styles.labelRow}>
+              <p className={styles.label}>Ответ</p>
+            </div>
+            <div className={styles.messageTextWrapper}>
+              <div className={styles.thinkingIndicator}>
+                <span className={styles.thinkingDot}></span>
+                <span className={styles.thinkingDot}></span>
+                <span className={styles.thinkingDot}></span>
+                <span className={styles.thinkingText}>Думаю...</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
       <div ref={bottomRef} />
     </div>
   );

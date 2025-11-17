@@ -3,6 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, Suspense, useState } from 'react';
 import { AuthForm } from '../components/auth/AuthForm';
 import { BackgroundBlobs } from '../components/ui/BackgroundBlobs';
+import { LoadingScreen } from '../components/ui/LoadingScreen';
 import { useAuth } from '../context/AuthContext';
 import { login as apiLogin, register as apiRegister } from '../utils/authApi';
 import { useToast } from '../components/ui/toast';
@@ -23,7 +24,19 @@ function AuthPageContent() {
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading || isAuthenticated) {
-    return null;
+    return (
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        zIndex: 9999,
+        backgroundColor: '#0f0f0f'
+      }}>
+        <LoadingScreen />
+      </div>
+    );
   }
 
   const setAction = (next) => {
@@ -79,7 +92,19 @@ function AuthPageContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div>Загрузка...</div>}>
+    <Suspense fallback={
+      <div style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        zIndex: 9999,
+        backgroundColor: '#0f0f0f'
+      }}>
+        <LoadingScreen />
+      </div>
+    }>
       <AuthPageContent />
     </Suspense>
   );

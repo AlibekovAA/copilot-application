@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
-import { Send, Paperclip, X } from './icons';
+import { Send, Paperclip, X, File, FileText } from './icons';
 import { TopicButtons } from './TopicButtons';
 import { validateNewFiles, formatFileSize, MAX_FILES, ALLOWED_FILE_TYPES } from '../../utils/fileValidation';
 import { removeHashtagsFromText } from '../../constants/topics';
@@ -112,36 +112,130 @@ export function QuestionPanel({ onSubmit, isLoading }) {
     fileInputRef.current?.click();
   };
 
+  const getFileIcon = (fileName) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+      case 'doc':
+      case 'docx':
+        return File;
+      case 'txt':
+      case 'md':
+        return FileText;
+      default:
+        return File;
+    }
+  };
+
+  const getFileTypeColor = (fileName) => {
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'pdf':
+        return '#ef3124';
+      case 'doc':
+      case 'docx':
+        return '#2b579a';
+      case 'txt':
+        return '#6b7280';
+      case 'md':
+        return '#9933ff';
+      default:
+        return '#9ca3af';
+    }
+  };
+
+  const hexToRgba = (hex, alpha) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.textareaWrapper}>
-        <Textarea
-          ref={textareaRef}
-          value={question}
-          onChange={handleQuestionChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Задайте ваш вопрос здесь... (Enter для отправки, Shift+Enter для новой строки)"
-          className={styles.textarea}
-          disabled={isLoading}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ALLOWED_FILE_TYPES.join(',')}
-          onChange={handleFileSelect}
-          className={styles.hidden}
-          disabled={isLoading}
-        />
-        <button
-          type="button"
-          onClick={handleFileButtonClick}
-          disabled={isLoading || files.length >= MAX_FILES}
-          className={styles.attachButton}
-          aria-label="Прикрепить файл"
-        >
-          <Paperclip className={styles.attachIcon} />
-        </button>
+        {validationError && (
+          <div className={styles.validationError}>
+            {validationError}
+          </div>
+        )}
+
+        {files.length > 0 && (
+          <div className={styles.filesListInline}>
+            {files.map((file, index) => {
+              const FileIcon = getFileIcon(file.name);
+              const fileColor = getFileTypeColor(file.name);
+              return (
+                <div
+                  key={`${file.name}-${index}`}
+                  className={styles.fileChip}
+                  style={{ '--file-color': fileColor }}
+                >
+                  <FileIcon 
+                    className={styles.fileChipIcon} 
+                    style={{ color: fileColor }}
+                  />
+                  <span className={styles.fileChipName} title={file.name}>
+                    {file.name}
+                  </span>
+                  <span className={styles.fileChipSize}>
+                    {formatFileSize(file.size)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFile(index);
+                    }}
+                    disabled={isLoading}
+                    className={styles.removeFileChipButton}
+                    aria-label={`Удалить ${file.name}`}
+                  >
+                    <X className={styles.removeFileChipIcon} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className={styles.textareaContainer}>
+          <Textarea
+            ref={textareaRef}
+            value={question}
+            onChange={handleQuestionChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Задайте ваш вопрос здесь... (Enter для отправки, Shift+Enter для новой строки)"
+            className={styles.textarea}
+            disabled={isLoading}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ALLOWED_FILE_TYPES.join(',')}
+            onChange={handleFileSelect}
+            className={styles.hidden}
+            disabled={isLoading}
+          />
+          <button
+            type="button"
+            onClick={handleFileButtonClick}
+            disabled={isLoading || files.length >= MAX_FILES}
+            className={styles.attachButton}
+            aria-label="Прикрепить файл"
+          >
+            <Paperclip className={styles.attachIcon} />
+          </button>
+          <Button
+            onClick={handleSubmit}
+            disabled={(!question.trim() && files.length === 0) || isLoading}
+            className={styles.submitButtonInline}
+          >
+            {isLoading ? 'Отправка...' : 'Отправить'}
+            <Send className={styles.fileIcon} />
+          </Button>
+        </div>
 
         <div className={styles.buttonsInside}>
           <div className={styles.footerLeft}>
@@ -151,54 +245,7 @@ export function QuestionPanel({ onSubmit, isLoading }) {
               activeTopics={activeTopics}
             />
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={(!question.trim() && files.length === 0) || isLoading}
-            className={styles.submitButton}
-          >
-            {isLoading ? 'Отправка...' : 'Отправить'}
-            <Send className={styles.fileIcon} />
-          </Button>
         </div>
-      </div>
-
-      <div className={styles.filesSection}>
-
-        {validationError && (
-          <div className={styles.validationError}>
-            {validationError}
-          </div>
-        )}
-
-        {files.length > 0 && (
-          <div className={styles.filesList}>
-            {files.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className={styles.fileItem}
-              >
-                <div className={styles.fileItemContent}>
-                  <Paperclip className={styles.fileIcon} />
-                  <span className={styles.fileName} title={file.name}>
-                    {file.name}
-                  </span>
-                  <span className={styles.fileSize}>
-                    {formatFileSize(file.size)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveFile(index)}
-                  disabled={isLoading}
-                  className={styles.removeFileButton}
-                  aria-label={`Удалить ${file.name}`}
-                >
-                  <X className={styles.removeFileIcon} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
