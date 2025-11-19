@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ConversationRepoDep, MessageRepoDep
@@ -22,7 +23,7 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
     user_id: int = Depends(get_current_user_id),
     conversation_id: int = Form(..., description="Conversation ID", gt=0),
     message: str = Form(..., description="Message text", min_length=1, max_length=10000),
-    domain: str | None = Form(None, description="Domain: legal, marketing, finance, general"),
+    domain: str | None = Form(None, description="Domain: legal, marketing, finance, sales, management, hr, general"),
     files: list[UploadFile] = File(default=[], description="Attached files"),
 ) -> ChatResponse:
     domain = domain or "general"
@@ -88,7 +89,7 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
             status="success",
         )
 
-    except Exception as e:
+    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError, OSError) as e:
         await db.rollback()
         raise handle_api_error(e, "chat endpoint") from e
 

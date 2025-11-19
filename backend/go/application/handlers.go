@@ -33,10 +33,6 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-type SuccessResponse struct {
-	Message string `json:"message"`
-}
-
 type contextKey string
 
 const (
@@ -227,13 +223,13 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return app.JWTSecret, nil
-	})
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("unexpected signing method")
+			}
+			return app.JWTSecret, nil
+		})
 
 		if err != nil || !token.Valid {
 			app.respondWithError(w, http.StatusUnauthorized, "invalid token")

@@ -17,12 +17,12 @@ import (
 )
 
 type Application struct {
-	DB         *sqlx.DB
-	userRepo   *database.UserRepository
-	Router     *mux.Router
-	Addr       string
-	JWTSecret  []byte
-	logger     *logger.Logger
+	DB        *sqlx.DB
+	userRepo  *database.UserRepository
+	Router    *mux.Router
+	Addr      string
+	JWTSecret []byte
+	logger    *logger.Logger
 }
 
 func NewApplication() *Application {
@@ -31,7 +31,7 @@ func NewApplication() *Application {
 	}
 }
 
-func (app *Application) Configure(ctx context.Context, logger *logger.Logger, cfg *config.Config) error {
+func (app *Application) Configure(logger *logger.Logger, cfg *config.Config) error {
 	app.logger = logger
 
 	db, err := database.OpenDB(&cfg.Database)
@@ -76,7 +76,7 @@ func (app *Application) RegisterHandlers() {
 	api.HandleFunc("/change-password", app.changePasswordHandler).Methods("POST")
 }
 
-func (app *Application) Run(ctx context.Context) {
+func (app *Application) Run() {
 	app.RegisterHandlers()
 
 	handler := corsMiddleware(app.Router)

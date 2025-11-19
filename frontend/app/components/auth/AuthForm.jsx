@@ -74,6 +74,15 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 			}
 		}
 		if (mode === 'forgot-password') {
+			if (!forgotPasswordEmail || forgotPasswordEmail.trim().length === 0) {
+				toast.error('Email обязателен для заполнения');
+				return;
+			}
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(forgotPasswordEmail)) {
+				toast.error('Введите корректный email адрес');
+				return;
+			}
 			if (onForgotPassword) {
 				onForgotPassword(forgotPasswordEmail);
 				setForgotPasswordSent(true);
@@ -151,7 +160,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</div>
 				</CardHeader>
 
-				<form onSubmit={handleSubmit}>
+				<form onSubmit={handleSubmit} noValidate>
 					<CardContent className={styles.spaceY4}>
 						<div className={styles.spaceY2}>
 							<Label htmlFor="email" className={styles.label}>Email</Label>
@@ -249,7 +258,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 				</CardHeader>
 
 				{!forgotPasswordSent ? (
-					<form onSubmit={handleSubmit}>
+					<form onSubmit={handleSubmit} noValidate>
 						<CardContent className={styles.spaceY4}>
 							<CardDescription className={styles.textDark}>
 								Введите ваш email, и мы отправим вам инструкции по восстановлению пароля.
@@ -321,7 +330,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 				</div>
 			</CardHeader>
 
-			<form onSubmit={handleSubmit}>
+			<form onSubmit={handleSubmit} noValidate>
 				<CardContent className={styles.spaceY4}>
 					<div className={styles.spaceY2}>
 						<Label htmlFor="name" className={styles.label}>Имя</Label>

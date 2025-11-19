@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import httpx
@@ -112,42 +113,12 @@ class MistralService:
                 raise ValueError(f"Error in request to Mistral AI: {error_text}") from e
 
             raise ValueError(f"Error when contacting Mistral AI: {status_code}") from e
-        except Exception as e:
+        except (RuntimeError, ConnectionError, OSError) as e:
             log.error(f"Unexpected error in Mistral service: {e}")
             raise ValueError(f"Unexpected error in Mistral service: {e!s}") from e
 
-    async def health_check(self) -> bool:
-        if not self.api_key:
-            log.warning("Cannot perform health check: MISTRAL_API_KEY not set")
-            return False
-
+    async def close(self, timeout: float = 10.0) -> None:
         try:
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "test"},
-                ],
-                "max_tokens": 5,
-            }
-
-            response = await self.client.post(
-                "/chat/completions",
-                json=payload,
-                timeout=5.0,
-            )
-            response.raise_for_status()
-            log.info("Mistral AI health check passed")
-            return True
-        except (httpx.HTTPError, ValueError) as e:
-            log.warning(f"Mistral AI health check failed: {e}")
-            return False
-
-    async def __aenter__(self) -> "MistralService":
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        await self.client.aclose()
-
-    async def close(self) -> None:
-        await self.client.aclose()
+            await asyncio.wait_for(self.client.aclose(), timeout=timeout)
+        except TimeoutError:
+            log.warning("Mistral HTTP client close timeout, connections will be closed on object destruction")

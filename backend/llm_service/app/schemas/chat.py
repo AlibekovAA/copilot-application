@@ -6,7 +6,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=10000)
     domain: str | None = Field(
         default=None,
-        description="Domain: legal, marketing, finance, general (default: general)",
+        description="Domain: legal, marketing, finance, sales, management, hr, general (default: general)",
     )
 
 

@@ -40,7 +40,7 @@ class FileProcessingService:
             try:
                 processed = await FileProcessingService.process_file(file)
                 processed_files.append(processed)
-            except Exception as e:
+            except (ValueError, OSError, RuntimeError) as e:
                 log.error(f"Error processing file {file.filename}: {e}")
                 raise ValueError(f"Ошибка обработки файла {file.filename}: {e!s}") from e
 

@@ -44,9 +44,15 @@ const formatErrorDetail = (detail) => {
   if (Array.isArray(detail)) {
     return detail
       .map((item) => {
-        const field = Array.isArray(item.loc) ? item.loc.join('.') : 'field';
         const message = item.msg || item.message || 'Некорректное значение';
-        return translateErrorMessage(`${field}: ${message}`);
+        const translatedMessage = translateErrorMessage(message);
+        const field = Array.isArray(item.loc) ? item.loc.join('.') : 'field';
+
+        if (translatedMessage !== message) {
+          return translatedMessage;
+        }
+
+        return `${field}: ${translatedMessage}`;
       })
       .join('\n');
   }
@@ -131,6 +137,11 @@ export default function Home() {
       );
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          formatErrorDetail(errorData.detail) ||
+          'Не удалось загрузить список диалогов';
+        toast.error(errorMessage);
         console.error(
           '[History] Failed to load conversations, status:',
           response.status,
@@ -139,7 +150,6 @@ export default function Home() {
       }
 
       const data = await response.json();
-      console.log('[History] Loaded data:', data);
 
       if (data.conversations && data.conversations.length > 0) {
         const loadedSessions = data.conversations.map((conv) => ({
@@ -151,17 +161,12 @@ export default function Home() {
           messages: [],
         }));
 
-        console.log('[History] Setting sessions:', loadedSessions);
         setSessions(loadedSessions);
         setActiveSessionId(loadedSessions[0].id);
 
         const firstConversation = loadedSessions[0];
         if (firstConversation.conversationId) {
           try {
-            console.log(
-              '[History] Loading messages for first conversation:',
-              firstConversation.conversationId,
-            );
             const messagesResponse = await fetch(
               `${API_URL}/conversations/${firstConversation.conversationId}/messages`,
               {
@@ -171,10 +176,6 @@ export default function Home() {
 
             if (messagesResponse.ok) {
               const messagesData = await messagesResponse.json();
-              console.log(
-                '[History] Loaded messages for first conversation:',
-                messagesData,
-              );
 
               setSessions((prevSessions) => {
                 const updated = [...prevSessions];
@@ -186,19 +187,25 @@ export default function Home() {
                 }
                 return updated;
               });
+            } else {
+              const errorData = await messagesResponse.json().catch(() => ({}));
+              const errorMessage =
+                formatErrorDetail(errorData.detail) ||
+                'Не удалось загрузить сообщения';
+              toast.error(errorMessage);
             }
           } catch (error) {
             console.error(
               '[History] Error loading messages for first conversation:',
               error,
             );
+            toast.error('Ошибка при загрузке сообщений');
           }
         }
-      } else {
-        console.log('[History] No conversations found in database');
       }
     } catch (error) {
       console.error('[History] Error loading conversations:', error);
+      toast.error('Ошибка при загрузке диалогов');
     }
   }, [isAuthenticated, userId]);
 
@@ -278,7 +285,10 @@ export default function Home() {
         });
 
         if (!createResponse.ok) {
-          throw new Error('Failed to create conversation');
+          const errorData = await createResponse.json().catch(() => ({}));
+          const errorMessage =
+            formatErrorDetail(errorData.detail) || 'Не удалось создать диалог';
+          throw new Error(errorMessage);
         }
 
         const createData = await createResponse.json();
@@ -398,15 +408,9 @@ export default function Home() {
     setTypingState({ messageId: null, fullText: '' });
 
     const session = sessions.find((s) => s.id === sessionId);
-    console.log('[Messages] Selected session:', session);
 
     if (session && session.conversationId && session.messages.length === 0) {
       try {
-        console.log(
-          '[Messages] Loading messages from:',
-          `${API_URL}/conversations/${session.conversationId}/messages`,
-        );
-
         const response = await fetch(
           `${API_URL}/conversations/${session.conversationId}/messages`,
           {
@@ -416,17 +420,22 @@ export default function Home() {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('[Messages] Loaded messages:', data);
 
           updateSession(sessionId, (s) => ({
             ...s,
             messages: data.messages || [],
           }));
         } else {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage =
+            formatErrorDetail(errorData.detail) ||
+            'Не удалось загрузить сообщения';
+          toast.error(errorMessage);
           console.error('[Messages] Failed to load, status:', response.status);
         }
       } catch (error) {
         console.error('[Messages] Error loading messages:', error);
+        toast.error('Ошибка при загрузке сообщений');
       }
     }
   };
@@ -446,18 +455,16 @@ export default function Home() {
           );
 
           if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage =
+              formatErrorDetail(errorData.detail) || 'Не удалось удалить чат';
+            toast.error(errorMessage);
             console.error(
               '[Delete] Failed to delete conversation:',
               response.status,
             );
-            toast.error('Не удалось удалить чат');
             return;
           }
-
-          console.log(
-            '[Delete] Successfully deleted conversation:',
-            session.conversationId,
-          );
         } catch (error) {
           console.error('[Delete] Error deleting conversation:', error);
           toast.error('Ошибка при удалении чата');
@@ -532,14 +539,6 @@ export default function Home() {
     }
   };
 
-  const handleHeaderThemeToggle = (checked) => {
-    if (checked && theme === 'dark') {
-      toggleTheme();
-    } else if (!checked && theme === 'light') {
-      toggleTheme();
-    }
-  };
-
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? sessions[0];
 
@@ -603,7 +602,7 @@ export default function Home() {
                 <div className={styles.headerDropdownItem} role="menuitem">
                   <Toggle
                     checked={theme === 'light'}
-                    onChange={handleHeaderThemeToggle}
+                    onChange={toggleTheme}
                     label="Сменить тему"
                   />
                 </div>
