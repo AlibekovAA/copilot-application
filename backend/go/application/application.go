@@ -126,6 +126,7 @@ func (app *Application) Run() {
 func corsMiddleware(next http.Handler) http.Handler {
 	allowedOrigins := map[string]bool{
 		"http://frontend_app:3000":   true,
+		"http://localhost:3000":      true,
 		"http://82.202.137.111:3000": true,
 	}
 
