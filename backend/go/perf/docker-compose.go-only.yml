@@ -1,0 +1,64 @@
+services:
+  postgres_db:
+    build:
+      context: ../../../db
+      dockerfile: Dockerfile
+    container_name: postgres_db_go
+    restart: unless-stopped
+    env_file: "../../../.env"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_go:/var/lib/postgresql/data:rw
+    networks:
+      - go-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command:
+      - "postgres"
+      - "-c"
+      - "log_min_messages=warning"
+
+  backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: go-backend-only
+    restart: unless-stopped
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file: "../../../.env"
+    networks:
+      - go-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres_data_go:
+
+networks:
+  go-network:
+    driver: bridge

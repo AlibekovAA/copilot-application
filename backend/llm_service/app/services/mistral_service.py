@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -18,26 +19,30 @@ class MistralService:
         self.model = self.settings.MISTRAL_MODEL
         self.base_url = self.settings.MISTRAL_BASE_URL
         self.timeout = self.settings.MISTRAL_TIMEOUT
+        self.mock_mode = os.getenv("MOCK_MISTRAL", "false").lower() == "true"
 
-        if not self.api_key:
-            log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
-            raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
+        if self.mock_mode:
+            log.info("MistralService running in MOCK mode - LLM API calls will be simulated")
+        else:
+            if not self.api_key:
+                log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
+                raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
 
-        limits = httpx.Limits(
-            max_keepalive_connections=20,
-            max_connections=50,
-            keepalive_expiry=30.0,
-        )
+            limits = httpx.Limits(
+                max_keepalive_connections=20,
+                max_connections=50,
+                keepalive_expiry=30.0,
+            )
 
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            limits=limits,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-        )
+            self.client = httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout,
+                limits=limits,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
 
     async def generate(
         self,
@@ -48,6 +53,16 @@ class MistralService:
         max_tokens: int = 5000,
         **kwargs: Any,
     ) -> str:
+        if self.mock_mode:
+            mock_response = (
+                f"Это мок-ответ для нагрузочного тестирования. "
+                f"Получен промпт длиной {len(prompt)} символов. "
+                f"История содержит {len(history_messages) if history_messages else 0} сообщений. "
+                f"Системный промпт: {system_prompt[:50]}..."
+            )
+            log.debug(f"Mock response generated: {len(mock_response)} chars")
+            return mock_response
+
         try:
             log.debug(
                 f"Generating with model: {self.model}, "
@@ -118,6 +133,8 @@ class MistralService:
             raise ValueError(f"Unexpected error in Mistral service: {e!s}") from e
 
     async def close(self, timeout: float = 10.0) -> None:
+        if self.mock_mode:
+            return
         try:
             await asyncio.wait_for(self.client.aclose(), timeout=timeout)
         except TimeoutError:
