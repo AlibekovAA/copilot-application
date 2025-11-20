@@ -1,7 +1,7 @@
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  process.env.NEXT_PUBLIC_API_URL || 'http://82.202.137.111:8000';
 export const AUTH_API_URL =
-  process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:8080';
+  process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://82.202.137.111:8080';
 
 export function getAuthToken() {
   return typeof window !== 'undefined'
