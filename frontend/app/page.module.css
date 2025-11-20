@@ -157,7 +157,7 @@
   height: 2.5rem;
   border-radius: 0.5rem;
   background: linear-gradient(135deg, rgba(153, 51, 255, 0.2), rgba(239, 49, 36, 0.15));
-  box-shadow: 
+  box-shadow:
     0 4px 12px -2px rgba(153, 51, 255, 0.3),
     0 2px 6px -1px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(153, 51, 255, 0.3);
@@ -172,7 +172,7 @@
 
 .headerIcon:hover {
   background: linear-gradient(135deg, rgba(153, 51, 255, 0.3), rgba(239, 49, 36, 0.25));
-  box-shadow: 
+  box-shadow:
     0 6px 16px -3px rgba(153, 51, 255, 0.4),
     0 4px 8px -2px rgba(239, 49, 36, 0.3);
   transform: scale(1.05);
@@ -180,7 +180,7 @@
 
 :global(.theme-light) .headerIcon {
   background: linear-gradient(135deg, rgba(239, 49, 36, 0.2), rgba(255, 107, 53, 0.15));
-  box-shadow: 
+  box-shadow:
     0 4px 12px -2px rgba(239, 49, 36, 0.3),
     0 2px 6px -1px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(239, 49, 36, 0.3);
@@ -188,7 +188,7 @@
 
 :global(.theme-light) .headerIcon:hover {
   background: linear-gradient(135deg, rgba(239, 49, 36, 0.3), rgba(255, 107, 53, 0.25));
-  box-shadow: 
+  box-shadow:
     0 6px 16px -3px rgba(239, 49, 36, 0.4),
     0 4px 8px -2px rgba(255, 107, 53, 0.3);
 }
@@ -409,7 +409,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  box-shadow: 
+  box-shadow:
     2px 0 20px -4px rgba(153, 51, 255, 0.3),
     2px 0 8px -2px rgba(136, 136, 136, 0.3),
     2px 0 8px -2px rgba(0, 0, 0, 0.4);
@@ -866,3 +866,53 @@
   opacity: 0.5;
 }
 
+.passwordFormField {
+  margin-bottom: 0.75rem;
+}
+
+.passwordInputWrapper {
+  position: relative;
+}
+
+.passwordInput {
+  width: 100%;
+  height: 1.75rem;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  padding-right: 2.5rem;
+  box-sizing: border-box;
+}
+
+.passwordToggleButton {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.passwordToggleIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.passwordFormActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+}

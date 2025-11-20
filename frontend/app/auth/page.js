@@ -71,7 +71,13 @@ function AuthPageContent() {
     }
   };
 
-  const handleForgotPassword = (email) => {};
+  const handleForgotPassword = async (email) => {
+    try {
+      toast.info('Функция восстановления пароля в разработке');
+    } catch (error) {
+      toast.error('Ошибка при отправке запроса на восстановление пароля');
+    }
+  };
 
   return (
     <div className={styles.container}>

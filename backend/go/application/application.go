@@ -34,14 +34,14 @@ func NewApplication() *Application {
 func (app *Application) Configure(logger *logger.Logger, cfg *config.Config) error {
 	app.logger = logger
 
-	db, err := database.OpenDB(&cfg.Database)
+	db, err := database.OpenDB(&cfg.Database, logger)
 	if err != nil {
-		app.logger.Errorf("error %v", err)
+		app.logger.Errorf("Failed to open database: %v", err)
 		return err
 	}
 
 	app.DB = db
-	app.userRepo = database.NewUserRepository(db)
+	app.userRepo = database.NewUserRepository(db, logger)
 	app.Addr = cfg.Addr
 	app.JWTSecret = []byte(cfg.JWTSecret)
 
@@ -82,8 +82,12 @@ func (app *Application) Run() {
 	handler := corsMiddleware(app.Router)
 
 	server := &http.Server{
-		Addr:    app.Addr,
-		Handler: handler,
+		Addr:         app.Addr,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
 
 	stop := make(chan os.Signal, 1)

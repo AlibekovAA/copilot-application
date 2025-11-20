@@ -9,7 +9,6 @@ from app.core.config import get_settings
 from app.core.database import engine
 from app.services import MistralService
 from app.utils import log
-from app.utils.logger import log as logger_instance
 
 
 @asynccontextmanager
@@ -71,8 +70,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             pass
 
     try:
-        if hasattr(logger_instance, "_queue_listener"):
-            logger_instance._queue_listener.stop()
+        if hasattr(log, "_queue_listener"):
+            log._queue_listener.stop()
             log.info("Logger closed")
     except (RuntimeError, AttributeError) as e:
         log.warning(f"Error closing logger: {e}")

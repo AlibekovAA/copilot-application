@@ -1,32 +1,5 @@
 import { AUTH_API_URL, getAuthToken } from './apiHelpers';
-
-const formatErrorDetail = (detail) => {
-  if (!detail) return '';
-  if (typeof detail === 'string') {
-    return detail;
-  }
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) => {
-        const field = Array.isArray(item.loc) ? item.loc.join('.') : 'field';
-        const message = item.msg || item.message || 'Некорректное значение';
-        return `${field}: ${message}`;
-      })
-      .join('\n');
-  }
-  if (typeof detail === 'object') {
-    if (detail.message) {
-      return detail.message;
-    }
-    if (detail.error) {
-      return detail.error;
-    }
-    if (detail.detail) {
-      return formatErrorDetail(detail.detail);
-    }
-  }
-  return String(detail);
-};
+import { formatErrorDetail } from './errorHelpers';
 
 export async function login(email, password) {
   const response = await fetch(`${AUTH_API_URL}/login`, {

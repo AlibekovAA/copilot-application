@@ -5,6 +5,9 @@ backend/llm_service/logs
 backend/go/logs
 backend/llm_service/app/**/__pycache__/
 .idea/
+frontend/app/.vscode/
+frontend/app/.idea/
+frontend/.idea/
 backend/go/vendor
 frontend/node_modules
 frontend/.pnp

@@ -112,12 +112,11 @@ class FileService:
                 try:
                     page = doc[page_num]
                     page_text = page.get_text(
-                        "text",
                         flags=(fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_PRESERVE_LIGATURES | fitz.TEXT_DEHYPHENATE),
                     )
 
-                    if page_text.strip():
-                        fixed_text = cls._fix_cyrillic_encoding(page_text)
+                    fixed_text = cls._fix_cyrillic_encoding(page_text)
+                    if fixed_text.strip():
                         text_parts.append(f"--- Страница {page_num + 1} ---\n{fixed_text}")
 
                 except (IndexError, RuntimeError, ValueError) as e:

@@ -25,6 +25,13 @@ class ConversationRepository(BaseRepository):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[Conversation], int]:
+        total_stmt = select(func.count(Conversation.conversation_id)).where(Conversation.user_id == user_id)
+        total_result = await self.session.execute(total_stmt)
+        total = total_result.scalar() or 0
+
+        if total == 0:
+            return [], 0
+
         messages_count_subquery = (
             select(Message.conversation_id, func.count(Message.message_id).label("messages_count"))
             .group_by(Message.conversation_id)
@@ -35,7 +42,6 @@ class ConversationRepository(BaseRepository):
             select(
                 Conversation,
                 func.coalesce(messages_count_subquery.c.messages_count, 0).label("msg_count"),
-                func.count().over().label("total_count"),
             )
             .outerjoin(
                 messages_count_subquery, Conversation.conversation_id == messages_count_subquery.c.conversation_id
@@ -49,12 +55,7 @@ class ConversationRepository(BaseRepository):
         result = await self.session.execute(stmt)
         rows = result.all()
 
-        if not rows:
-            return [], 0
-
         conversations = []
-        total = rows[0][2] if rows else 0
-
         for row in rows:
             conversation = row[0]
             conversation.messages_count = row[1]
