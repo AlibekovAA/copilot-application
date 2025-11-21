@@ -2,7 +2,10 @@ package database
 
 import (
 	"backend/config"
+	"backend/logger"
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,9 +16,12 @@ const (
 	selectUserQuery = `SELECT user_id, email, name, hashed_password FROM users`
 )
 
-func OpenDB(cfg *config.DatabaseConfig) (*sqlx.DB, error) {
+func OpenDB(cfg *config.DatabaseConfig, logger *logger.Logger) (*sqlx.DB, error) {
 	db, err := sqlx.Open("postgres", cfg.URI)
 	if err != nil {
+		if logger != nil {
+			logger.Errorf("Failed to open database connection: %v", err)
+		}
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
@@ -27,52 +33,115 @@ func OpenDB(cfg *config.DatabaseConfig) (*sqlx.DB, error) {
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
+		if logger != nil {
+			logger.Errorf("Failed to ping database: %v", err)
+		}
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	if logger != nil {
+		logger.Info("Database connection established successfully")
+	}
 	return db, nil
 }
 
 type UserRepository struct {
-	db *sqlx.DB
+	db     *sqlx.DB
+	logger *logger.Logger
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepository {
-	return &UserRepository{db: db}
+func NewUserRepository(db *sqlx.DB, logger *logger.Logger) *UserRepository {
+	return &UserRepository{
+		db:     db,
+		logger: logger,
+	}
 }
 
-func (r *UserRepository) GetByEmail(email string) (User, error) {
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	query := selectUserQuery + ` WHERE email = $1`
-	err := r.db.Get(&user, query, email)
-	return user, err
+	err := r.db.GetContext(ctx, &user, query, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Debugf("User not found by email: %s", email)
+			return user, fmt.Errorf("user not found: %w", err)
+		}
+		r.logger.Errorf("Failed to get user by email %s: %v", email, err)
+		return user, fmt.Errorf("failed to get user by email: %w", err)
+	}
+	return user, nil
 }
 
-func (r *UserRepository) GetByID(userID int64) (User, error) {
+func (r *UserRepository) GetByID(ctx context.Context, userID int64) (User, error) {
 	var user User
 	query := selectUserQuery + ` WHERE user_id = $1`
-	err := r.db.Get(&user, query, userID)
-	return user, err
-}
-
-func (r *UserRepository) UpdatePassword(user User) error {
-	query := `UPDATE users SET hashed_password = :hashed_password WHERE user_id = :user_id`
-	_, err := r.db.NamedExec(query, user)
-	return err
-}
-
-func (r *UserRepository) Create(user User) error {
-	tx, err := r.db.Beginx()
+	err := r.db.GetContext(ctx, &user, query, userID)
 	if err != nil {
-		return err
+		if errors.Is(err, sql.ErrNoRows) {
+			r.logger.Debugf("User not found by id: %d", userID)
+			return user, fmt.Errorf("user not found: %w", err)
+		}
+		r.logger.Errorf("Failed to get user by id %d: %v", userID, err)
+		return user, fmt.Errorf("failed to get user by id: %w", err)
 	}
+	return user, nil
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, user User) error {
+	query := `UPDATE users SET hashed_password = :hashed_password WHERE user_id = :user_id`
+	result, err := r.db.NamedExecContext(ctx, query, user)
+	if err != nil {
+		r.logger.Errorf("Failed to update password for user %d: %v", user.ID, err)
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		r.logger.Errorf("Failed to get rows affected for password update: %v", err)
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		r.logger.Warnf("Password update attempted for non-existent user %d", user.ID)
+		return fmt.Errorf("user not found")
+	}
+
+	r.logger.Infof("Password updated successfully for user %d", user.ID)
+	return nil
+}
+
+func (r *UserRepository) Create(ctx context.Context, user User) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		r.logger.Errorf("Failed to begin transaction for user creation: %v", err)
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	var originalErr error
+	defer func() {
+		if originalErr != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				r.logger.Errorf("Rollback error: %v, original error: %v", rbErr, originalErr)
+			} else {
+				r.logger.Debugf("Transaction rolled back successfully")
+			}
+		}
+	}()
 
 	query := `INSERT INTO users (email, hashed_password, name) VALUES ($1, $2, $3) RETURNING user_id`
-	err = tx.QueryRowx(query, user.Email, user.HashedPassword, user.Name).Scan(&user.ID)
+	err = tx.QueryRowxContext(ctx, query, user.Email, user.HashedPassword, user.Name).Scan(&user.ID)
 	if err != nil {
-		tx.Rollback()
-		return err
+		originalErr = err
+		r.logger.Errorf("Failed to create user with email %s: %v", user.Email, err)
+		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		originalErr = err
+		r.logger.Errorf("Failed to commit transaction for user creation: %v", err)
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.logger.Infof("User created successfully with id %d and email %s", user.ID, user.Email)
+	return nil
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '../ui/card';
 import { Copy, Check, Paperclip } from './icons';
 import { cn } from '../ui/utils';
 import { TYPING_INTERVAL_MS } from '../../utils/apiHelpers';
 import { formatFileSize } from '../../utils/fileValidation';
+import { useToast } from '../ui/toast';
 import styles from './ConversationView.module.css';
 
 const USER_LABEL = 'Вы';
@@ -19,10 +20,7 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
   const typingIntervalRef = useRef(null);
   const currentTypingMessageIdRef = useRef(null);
   const currentIndexRef = useRef(0);
-  const typingMessage = useMemo(
-    () => (typingState.messageId ? messages.find(message => message.id === typingState.messageId) : null),
-    [messages, typingState.messageId],
-  );
+  const toast = useToast();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -96,13 +94,18 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
       window.clearTimeout(copyTimeoutRef.current);
     }
 
-    navigator.clipboard.writeText(content).then(() => {
-      setCopiedMessageId(messageId);
-      copyTimeoutRef.current = window.setTimeout(() => {
-        setCopiedMessageId(current => (current === messageId ? null : current));
-        copyTimeoutRef.current = null;
-      }, 1800);
-    });
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        setCopiedMessageId(messageId);
+        copyTimeoutRef.current = window.setTimeout(() => {
+          setCopiedMessageId(current => (current === messageId ? null : current));
+          copyTimeoutRef.current = null;
+        }, 1800);
+      })
+      .catch((error) => {
+        console.error('Failed to copy to clipboard:', error);
+        toast.error('Не удалось скопировать текст');
+      });
   };
 
   const getMessageContent = (message) => {
@@ -142,7 +145,7 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
 
   const getMessageLabel = (role) => (role === 'user' ? USER_LABEL : ASSISTANT_LABEL);
 
-  const showThinkingIndicator = isLoadingAnswer && messages.length > 0 && 
+  const showThinkingIndicator = isLoadingAnswer && messages.length > 0 &&
     messages[messages.length - 1]?.role === 'user' &&
     !messages.some(m => m.role === 'assistant' && m.id === typingState.messageId);
 

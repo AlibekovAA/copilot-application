@@ -11,16 +11,12 @@ class MessageRepository(BaseRepository):
         role: str,
         content: str,
         enriched_prompt: str | None = None,
-        file_name: str | None = None,
-        content_type: str | None = None,
     ) -> Message:
         message = Message(
             conversation_id=conversation_id,
             role=role,
             content=content,
             enriched_prompt=enriched_prompt,
-            file_name=file_name,
-            content_type=content_type,
         )
         self.session.add(message)
         return message

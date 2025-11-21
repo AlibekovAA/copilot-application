@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 
 from fastapi import UploadFile
@@ -34,17 +35,16 @@ class FileProcessingService:
             return []
 
         log.info(f"Processing {len(files)} files")
-        processed_files = []
 
-        for file in files:
+        async def process_single_file(file: UploadFile) -> ProcessedFile:
             try:
-                processed = await FileProcessingService.process_file(file)
-                processed_files.append(processed)
-            except Exception as e:
+                return await FileProcessingService.process_file(file)
+            except (ValueError, OSError, RuntimeError) as e:
                 log.error(f"Error processing file {file.filename}: {e}")
                 raise ValueError(f"Ошибка обработки файла {file.filename}: {e!s}") from e
 
-        return processed_files
+        processed_files = await asyncio.gather(*[process_single_file(file) for file in files])
+        return list[ProcessedFile](processed_files)
 
     @staticmethod
     def format_files_for_prompt(processed_files: list[ProcessedFile]) -> str:

@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -33,10 +34,6 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-type SuccessResponse struct {
-	Message string `json:"message"`
-}
-
 type contextKey string
 
 const (
@@ -49,7 +46,11 @@ func (app *Application) healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
 func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
+
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		app.respondWithError(w, http.StatusBadRequest, "invalid request body")
@@ -61,12 +62,25 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if !emailRegex.MatchString(req.Email) {
+		app.respondWithError(w, http.StatusBadRequest, "invalid email format")
+		return
+	}
+
+	if len(req.Name) < 2 {
+		app.respondWithError(w, http.StatusBadRequest, "name must be at least 2 characters long")
+		return
+	}
+
 	if len(req.Password) < 8 {
 		app.respondWithError(w, http.StatusBadRequest, "password must be at least 8 characters long")
 		return
 	}
 
-	_, err := app.userRepo.GetByEmail(req.Email)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	_, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil {
 		app.respondWithError(w, http.StatusConflict, "email already exists")
 		return
@@ -84,7 +98,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		Name:           req.Name,
 		HashedPassword: string(hashedPassword),
 	}
-	err = app.userRepo.Create(user)
+	err = app.userRepo.Create(ctx, user)
 
 	if err != nil {
 		app.logger.Errorf("Registration DB error: %v", err)
@@ -92,7 +106,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	createdUser, err := app.userRepo.GetByEmail(req.Email)
+	createdUser, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		app.logger.Errorf("Failed to fetch created user: %v", err)
 		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
@@ -117,13 +131,23 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		app.respondWithError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	user, err := app.userRepo.GetByEmail(req.Email)
+	if req.Email == "" || req.Password == "" {
+		app.respondWithError(w, http.StatusBadRequest, "missing required fields")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	user, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		app.respondWithError(w, http.StatusUnauthorized, "invalid credentials")
 		return
@@ -166,6 +190,8 @@ func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
+
 	userID, ok := r.Context().Value(userIDKey).(int64)
 	if !ok {
 		app.respondWithError(w, http.StatusUnauthorized, "unauthorized")
@@ -188,7 +214,15 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	user, err := app.userRepo.GetByID(userID)
+	if req.OldPassword == req.NewPassword {
+		app.respondWithError(w, http.StatusBadRequest, "new password must be different from old password")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	user, err := app.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		app.logger.Errorf("User fetch error: %v", err)
 		app.respondWithError(w, http.StatusUnauthorized, "user not found")
@@ -209,7 +243,7 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 
 	user.HashedPassword = string(hashedNewPassword)
 
-	err = app.userRepo.UpdatePassword(user)
+	err = app.userRepo.UpdatePassword(ctx, user)
 	if err != nil {
 		app.logger.Errorf("Password update error: %v", err)
 		app.respondWithError(w, http.StatusInternalServerError, "failed to update password")
@@ -227,13 +261,13 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return app.JWTSecret, nil
-	})
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("unexpected signing method")
+			}
+			return app.JWTSecret, nil
+		})
 
 		if err != nil || !token.Valid {
 			app.respondWithError(w, http.StatusUnauthorized, "invalid token")
@@ -241,20 +275,16 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			userIDStr, ok := claims["user_id"].(string)
+			userIDFloat, ok := claims["user_id"].(float64)
 			if !ok {
 				app.respondWithError(w, http.StatusUnauthorized, "invalid user_id in token")
 				return
 			}
+			userID := int64(userIDFloat)
+
 			email, ok := claims["email"].(string)
 			if !ok {
 				app.respondWithError(w, http.StatusUnauthorized, "invalid email in token")
-				return
-			}
-
-			var userID int64
-			if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
-				app.respondWithError(w, http.StatusUnauthorized, "invalid user_id format")
 				return
 			}
 
@@ -274,7 +304,7 @@ func (app *Application) respondWithError(w http.ResponseWriter, code int, messag
 func (app *Application) respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		if err := json.NewEncoder(w).Encode(payload); err != nil {
 		app.logger.Errorf("Failed to encode JSON response: %v", err)
 	}
 }

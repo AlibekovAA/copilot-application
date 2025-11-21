@@ -1,0 +1,100 @@
+services:
+  db:
+    build:
+      context: ../../../db
+      dockerfile: Dockerfile
+    container_name: postgres_db_llm
+    restart: unless-stopped
+    env_file: "../../../.env"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_llm:/var/lib/postgresql/data:rw
+    networks:
+      - llm-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-db}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command:
+      - "postgres"
+      - "-c"
+      - "log_min_messages=warning"
+
+  go-backend:
+    build:
+      context: ../../go
+      dockerfile: Dockerfile
+    container_name: go-backend-llm-test
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file: "../../../.env"
+    environment:
+      - DATABASE_URI=postgres://user:postgres@db:5432/db?sslmode=disable
+    networks:
+      - llm-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  llm-backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: llm-service-only
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      go-backend:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file: "../../../.env"
+    environment:
+      - MOCK_MISTRAL=true
+      - DATABASE_URL=postgresql+asyncpg://user:postgres@db:5432/db
+    networks:
+      - llm-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8000/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgres_data_llm:
+
+networks:
+  llm-network:
+    driver: bridge

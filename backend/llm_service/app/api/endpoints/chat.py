@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ConversationRepoDep, MessageRepoDep
+from app.api.dependencies import ConversationRepoDep, MessageRepoDep, MistralServiceDep
 from app.core import get_db
 from app.middleware import get_current_user_id
 from app.prompts import get_system_prompt
@@ -15,14 +16,14 @@ router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
 async def chat_endpoint(  # noqa: PLR0913, PLR0917
-    request: Request,
     conversation_repo: ConversationRepoDep,
     message_repo: MessageRepoDep,
+    mistral_service: MistralServiceDep,
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
     conversation_id: int = Form(..., description="Conversation ID", gt=0),
     message: str = Form(..., description="Message text", min_length=1, max_length=10000),
-    domain: str | None = Form(None, description="Domain: legal, marketing, finance, general"),
+    domain: str | None = Form(None, description="Domain: legal, marketing, finance, sales, management, hr, general"),
     files: list[UploadFile] = File(default=[], description="Attached files"),
 ) -> ChatResponse:
     domain = domain or "general"
@@ -50,13 +51,12 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
             files_content = FileProcessingService.format_files_for_prompt(processed_files)
             full_message = f"{message}\n\n{files_content}"
 
-        enriched_prompt = None
+        enriched_prompt = f"{system_prompt}\n\n{full_message}" if is_first_message else None
         if is_first_message:
-            enriched_prompt = f"{system_prompt}\n\n{full_message}"
             log.info(f"First message - enriched with system prompt for domain: {domain}")
 
         response_text = await _generate_with_history_retry(
-            mistral_service=request.app.state.mistral_service,
+            mistral_service=mistral_service,
             prompt=full_message,
             system_prompt=system_prompt,
             history=history,
@@ -88,7 +88,7 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
             status="success",
         )
 
-    except Exception as e:
+    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError, OSError) as e:
         await db.rollback()
         raise handle_api_error(e, "chat endpoint") from e
 

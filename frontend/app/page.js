@@ -26,41 +26,8 @@ import { Button } from './components/ui/button';
 import { changePassword as apiChangePassword } from './utils/authApi';
 import { API_URL, getAuthHeaders } from './utils/apiHelpers';
 import { useToast } from './components/ui/toast';
+import { formatErrorDetail } from './utils/errorHelpers';
 import styles from './page.module.css';
-
-const translateErrorMessage = (message) => {
-  if (!message) return '';
-  return message.replace(
-    /string should have at most 10000 characters/gi,
-    'Сообщение должно содержать не более 10 000 символов.',
-  );
-};
-
-const formatErrorDetail = (detail) => {
-  if (!detail) return '';
-  if (typeof detail === 'string') {
-    return translateErrorMessage(detail);
-  }
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) => {
-        const field = Array.isArray(item.loc) ? item.loc.join('.') : 'field';
-        const message = item.msg || item.message || 'Некорректное значение';
-        return translateErrorMessage(`${field}: ${message}`);
-      })
-      .join('\n');
-  }
-  if (typeof detail === 'object') {
-    if (detail.message) {
-      return translateErrorMessage(detail.message);
-    }
-    if (detail.error) {
-      return translateErrorMessage(detail.error);
-    }
-    return translateErrorMessage(JSON.stringify(detail));
-  }
-  return translateErrorMessage(String(detail));
-};
 
 export default function Home() {
   const { isAuthenticated, isLoading, userId, userEmail, logout } = useAuth();
@@ -82,7 +49,6 @@ export default function Home() {
     newPassword: '',
     confirmPassword: '',
   });
-  const [changePasswordError, setChangePasswordError] = useState(null);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -131,6 +97,11 @@ export default function Home() {
       );
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage =
+          formatErrorDetail(errorData.detail) ||
+          'Не удалось загрузить список диалогов';
+        toast.error(errorMessage);
         console.error(
           '[History] Failed to load conversations, status:',
           response.status,
@@ -139,7 +110,6 @@ export default function Home() {
       }
 
       const data = await response.json();
-      console.log('[History] Loaded data:', data);
 
       if (data.conversations && data.conversations.length > 0) {
         const loadedSessions = data.conversations.map((conv) => ({
@@ -151,17 +121,12 @@ export default function Home() {
           messages: [],
         }));
 
-        console.log('[History] Setting sessions:', loadedSessions);
         setSessions(loadedSessions);
         setActiveSessionId(loadedSessions[0].id);
 
         const firstConversation = loadedSessions[0];
         if (firstConversation.conversationId) {
           try {
-            console.log(
-              '[History] Loading messages for first conversation:',
-              firstConversation.conversationId,
-            );
             const messagesResponse = await fetch(
               `${API_URL}/conversations/${firstConversation.conversationId}/messages`,
               {
@@ -171,10 +136,6 @@ export default function Home() {
 
             if (messagesResponse.ok) {
               const messagesData = await messagesResponse.json();
-              console.log(
-                '[History] Loaded messages for first conversation:',
-                messagesData,
-              );
 
               setSessions((prevSessions) => {
                 const updated = [...prevSessions];
@@ -186,21 +147,27 @@ export default function Home() {
                 }
                 return updated;
               });
+            } else {
+              const errorData = await messagesResponse.json().catch(() => ({}));
+              const errorMessage =
+                formatErrorDetail(errorData.detail) ||
+                'Не удалось загрузить сообщения';
+              toast.error(errorMessage);
             }
           } catch (error) {
             console.error(
               '[History] Error loading messages for first conversation:',
               error,
             );
+            toast.error('Ошибка при загрузке сообщений');
           }
         }
-      } else {
-        console.log('[History] No conversations found in database');
       }
     } catch (error) {
       console.error('[History] Error loading conversations:', error);
+      toast.error('Ошибка при загрузке диалогов');
     }
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated, userId, toast]);
 
   useEffect(() => {
     loadConversations();
@@ -278,7 +245,10 @@ export default function Home() {
         });
 
         if (!createResponse.ok) {
-          throw new Error('Failed to create conversation');
+          const errorData = await createResponse.json().catch(() => ({}));
+          const errorMessage =
+            formatErrorDetail(errorData.detail) || 'Не удалось создать диалог';
+          throw new Error(errorMessage);
         }
 
         const createData = await createResponse.json();
@@ -398,15 +368,9 @@ export default function Home() {
     setTypingState({ messageId: null, fullText: '' });
 
     const session = sessions.find((s) => s.id === sessionId);
-    console.log('[Messages] Selected session:', session);
 
     if (session && session.conversationId && session.messages.length === 0) {
       try {
-        console.log(
-          '[Messages] Loading messages from:',
-          `${API_URL}/conversations/${session.conversationId}/messages`,
-        );
-
         const response = await fetch(
           `${API_URL}/conversations/${session.conversationId}/messages`,
           {
@@ -416,17 +380,22 @@ export default function Home() {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('[Messages] Loaded messages:', data);
 
           updateSession(sessionId, (s) => ({
             ...s,
             messages: data.messages || [],
           }));
         } else {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage =
+            formatErrorDetail(errorData.detail) ||
+            'Не удалось загрузить сообщения';
+          toast.error(errorMessage);
           console.error('[Messages] Failed to load, status:', response.status);
         }
       } catch (error) {
         console.error('[Messages] Error loading messages:', error);
+        toast.error('Ошибка при загрузке сообщений');
       }
     }
   };
@@ -446,18 +415,16 @@ export default function Home() {
           );
 
           if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage =
+              formatErrorDetail(errorData.detail) || 'Не удалось удалить чат';
+            toast.error(errorMessage);
             console.error(
               '[Delete] Failed to delete conversation:',
               response.status,
             );
-            toast.error('Не удалось удалить чат');
             return;
           }
-
-          console.log(
-            '[Delete] Successfully deleted conversation:',
-            session.conversationId,
-          );
         } catch (error) {
           console.error('[Delete] Error deleting conversation:', error);
           toast.error('Ошибка при удалении чата');
@@ -506,13 +473,46 @@ export default function Home() {
   };
 
   const handleChangePassword = async () => {
+    if (
+      !changePasswordData.oldPassword ||
+      changePasswordData.oldPassword.trim() === ''
+    ) {
+      toast.error('Введите текущий пароль');
+      return;
+    }
+
+    if (
+      !changePasswordData.newPassword ||
+      changePasswordData.newPassword.trim() === ''
+    ) {
+      toast.error('Введите новый пароль');
+      return;
+    }
+
+    if (changePasswordData.newPassword.length < 8) {
+      toast.error('Новый пароль должен содержать минимум 8 символов');
+      return;
+    }
+
+    if (
+      !changePasswordData.confirmPassword ||
+      changePasswordData.confirmPassword.trim() === ''
+    ) {
+      toast.error('Подтвердите новый пароль');
+      return;
+    }
+
     if (changePasswordData.newPassword !== changePasswordData.confirmPassword) {
-      setChangePasswordError('Новые пароли не совпадают');
+      toast.error('Новые пароли не совпадают');
+      return;
+    }
+
+    if (changePasswordData.oldPassword === changePasswordData.newPassword) {
+      toast.error('Новый пароль должен отличаться от текущего');
       return;
     }
 
     try {
-      setChangePasswordError(null);
       setIsChangingPassword(true);
       await apiChangePassword(
         changePasswordData.oldPassword,
@@ -526,17 +526,9 @@ export default function Home() {
       });
       toast.success('Пароль успешно изменен');
     } catch (error) {
-      setChangePasswordError(error.message || 'Ошибка смены пароля');
+      toast.error(error.message || 'Ошибка смены пароля');
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handleHeaderThemeToggle = (checked) => {
-    if (checked && theme === 'dark') {
-      toggleTheme();
-    } else if (!checked && theme === 'light') {
-      toggleTheme();
     }
   };
 
@@ -603,7 +595,7 @@ export default function Home() {
                 <div className={styles.headerDropdownItem} role="menuitem">
                   <Toggle
                     checked={theme === 'light'}
-                    onChange={handleHeaderThemeToggle}
+                    onChange={toggleTheme}
                     label="Сменить тему"
                   />
                 </div>
@@ -702,13 +694,7 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
+              <div className={styles.modalHeader}>
                 <CardTitle>Сменить пароль</CardTitle>
                 <button
                   type="button"
@@ -719,16 +705,10 @@ export default function Home() {
                       newPassword: '',
                       confirmPassword: '',
                     });
-                    setChangePasswordError(null);
                   }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'inherit',
-                  }}
+                  className={styles.modalCloseButton}
                 >
-                  <X style={{ width: '1.5rem', height: '1.5rem' }} />
+                  <X className={styles.passwordToggleIcon} />
                 </button>
               </div>
             </CardHeader>
@@ -738,10 +718,11 @@ export default function Home() {
                   e.preventDefault();
                   handleChangePassword();
                 }}
+                noValidate
               >
-                <div style={{ marginBottom: '0.75rem' }}>
+                <div className={styles.passwordFormField}>
                   <Label htmlFor="old-password">Текущий пароль</Label>
-                  <div style={{ position: 'relative' }}>
+                  <div className={styles.passwordInputWrapper}>
                     <Input
                       id="old-password"
                       type={showOldPassword ? 'text' : 'password'}
@@ -753,42 +734,25 @@ export default function Home() {
                         }))
                       }
                       required
-                      style={{
-                        width: '100%',
-                        height: '1.75rem',
-                        fontSize: '0.875rem',
-                        padding: '0.25rem 0.5rem',
-                        paddingRight: '2.5rem',
-                        boxSizing: 'border-box',
-                      }}
+                      className={styles.passwordInput}
                     />
                     <button
                       type="button"
                       onClick={() => setShowOldPassword(!showOldPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '0.5rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
+                      className={styles.passwordToggleButton}
                     >
                       {showOldPassword ? (
-                        <EyeOff
-                          style={{ width: '1.25rem', height: '1.25rem' }}
-                        />
+                        <EyeOff className={styles.passwordToggleIcon} />
                       ) : (
-                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                        <Eye className={styles.passwordToggleIcon} />
                       )}
                     </button>
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '0.75rem' }}>
+                <div className={styles.passwordFormField}>
                   <Label htmlFor="new-password">Новый пароль</Label>
-                  <div style={{ position: 'relative' }}>
+                  <div className={styles.passwordInputWrapper}>
                     <Input
                       id="new-password"
                       type={showNewPassword ? 'text' : 'password'}
@@ -800,44 +764,27 @@ export default function Home() {
                         }))
                       }
                       required
-                      style={{
-                        width: '100%',
-                        height: '1.75rem',
-                        fontSize: '0.875rem',
-                        padding: '0.25rem 0.5rem',
-                        paddingRight: '2.5rem',
-                        boxSizing: 'border-box',
-                      }}
+                      className={styles.passwordInput}
                     />
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '0.5rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
+                      className={styles.passwordToggleButton}
                     >
                       {showNewPassword ? (
-                        <EyeOff
-                          style={{ width: '1.25rem', height: '1.25rem' }}
-                        />
+                        <EyeOff className={styles.passwordToggleIcon} />
                       ) : (
-                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                        <Eye className={styles.passwordToggleIcon} />
                       )}
                     </button>
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '0.75rem' }}>
+                <div className={styles.passwordFormField}>
                   <Label htmlFor="confirm-password">
                     Подтвердите новый пароль
                   </Label>
-                  <div style={{ position: 'relative' }}>
+                  <div className={styles.passwordInputWrapper}>
                     <Input
                       id="confirm-password"
                       type={showConfirmPassword ? 'text' : 'password'}
@@ -849,60 +796,25 @@ export default function Home() {
                         }))
                       }
                       required
-                      style={{
-                        width: '100%',
-                        height: '1.75rem',
-                        fontSize: '0.875rem',
-                        padding: '0.25rem 0.5rem',
-                        paddingRight: '2.5rem',
-                        boxSizing: 'border-box',
-                      }}
+                      className={styles.passwordInput}
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      style={{
-                        position: 'absolute',
-                        right: '0.5rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
+                      className={styles.passwordToggleButton}
                     >
                       {showConfirmPassword ? (
-                        <EyeOff
-                          style={{ width: '1.25rem', height: '1.25rem' }}
-                        />
+                        <EyeOff className={styles.passwordToggleIcon} />
                       ) : (
-                        <Eye style={{ width: '1.25rem', height: '1.25rem' }} />
+                        <Eye className={styles.passwordToggleIcon} />
                       )}
                     </button>
                   </div>
                 </div>
 
-                {changePasswordError && (
-                  <div
-                    style={{
-                      color: '#ef4444',
-                      marginBottom: '0.75rem',
-                      fontSize: '0.875rem',
-                    }}
-                  >
-                    {changePasswordError}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '0.5rem',
-                    justifyContent: 'flex-end',
-                  }}
-                >
+                <div className={styles.passwordFormActions}>
                   <Button
                     type="button"
                     variant="outline"
@@ -913,7 +825,6 @@ export default function Home() {
                         newPassword: '',
                         confirmPassword: '',
                       });
-                      setChangePasswordError(null);
                     }}
                     disabled={isChangingPassword}
                     className={styles.cancelButton}

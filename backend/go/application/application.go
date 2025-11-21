@@ -17,12 +17,12 @@ import (
 )
 
 type Application struct {
-	DB         *sqlx.DB
-	userRepo   *database.UserRepository
-	Router     *mux.Router
-	Addr       string
-	JWTSecret  []byte
-	logger     *logger.Logger
+	DB        *sqlx.DB
+	userRepo  *database.UserRepository
+	Router    *mux.Router
+	Addr      string
+	JWTSecret []byte
+	logger    *logger.Logger
 }
 
 func NewApplication() *Application {
@@ -31,17 +31,17 @@ func NewApplication() *Application {
 	}
 }
 
-func (app *Application) Configure(ctx context.Context, logger *logger.Logger, cfg *config.Config) error {
+func (app *Application) Configure(logger *logger.Logger, cfg *config.Config) error {
 	app.logger = logger
 
-	db, err := database.OpenDB(&cfg.Database)
+	db, err := database.OpenDB(&cfg.Database, logger)
 	if err != nil {
-		app.logger.Errorf("error %v", err)
+		app.logger.Errorf("Failed to open database: %v", err)
 		return err
 	}
 
 	app.DB = db
-	app.userRepo = database.NewUserRepository(db)
+	app.userRepo = database.NewUserRepository(db, logger)
 	app.Addr = cfg.Addr
 	app.JWTSecret = []byte(cfg.JWTSecret)
 
@@ -76,14 +76,18 @@ func (app *Application) RegisterHandlers() {
 	api.HandleFunc("/change-password", app.changePasswordHandler).Methods("POST")
 }
 
-func (app *Application) Run(ctx context.Context) {
+func (app *Application) Run() {
 	app.RegisterHandlers()
 
 	handler := corsMiddleware(app.Router)
 
 	server := &http.Server{
-		Addr:    app.Addr,
-		Handler: handler,
+		Addr:         app.Addr,
+		Handler:      handler,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
 
 	stop := make(chan os.Signal, 1)

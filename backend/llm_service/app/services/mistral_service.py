@@ -1,3 +1,5 @@
+import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -17,26 +19,30 @@ class MistralService:
         self.model = self.settings.MISTRAL_MODEL
         self.base_url = self.settings.MISTRAL_BASE_URL
         self.timeout = self.settings.MISTRAL_TIMEOUT
+        self.mock_mode = os.getenv("MOCK_MISTRAL", "false").lower() == "true"
 
-        if not self.api_key:
-            log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
-            raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
+        if self.mock_mode:
+            log.info("MistralService running in MOCK mode - LLM API calls will be simulated")
+        else:
+            if not self.api_key:
+                log.error("MISTRAL_API_KEY not configured. Please set it in .env file.")
+                raise ValueError("MISTRAL_API_KEY not configured. Service cannot start without it.")
 
-        limits = httpx.Limits(
-            max_keepalive_connections=20,
-            max_connections=50,
-            keepalive_expiry=30.0,
-        )
+            limits = httpx.Limits(
+                max_keepalive_connections=20,
+                max_connections=50,
+                keepalive_expiry=30.0,
+            )
 
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            limits=limits,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
-            },
-        )
+            self.client = httpx.AsyncClient(
+                base_url=self.base_url,
+                timeout=self.timeout,
+                limits=limits,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
 
     async def generate(
         self,
@@ -47,6 +53,16 @@ class MistralService:
         max_tokens: int = 5000,
         **kwargs: Any,
     ) -> str:
+        if self.mock_mode:
+            mock_response = (
+                f"Это мок-ответ для нагрузочного тестирования. "
+                f"Получен промпт длиной {len(prompt)} символов. "
+                f"История содержит {len(history_messages) if history_messages else 0} сообщений. "
+                f"Системный промпт: {system_prompt[:50]}..."
+            )
+            log.debug(f"Mock response generated: {len(mock_response)} chars")
+            return mock_response
+
         try:
             log.debug(
                 f"Generating with model: {self.model}, "
@@ -112,42 +128,14 @@ class MistralService:
                 raise ValueError(f"Error in request to Mistral AI: {error_text}") from e
 
             raise ValueError(f"Error when contacting Mistral AI: {status_code}") from e
-        except Exception as e:
+        except (RuntimeError, ConnectionError, OSError) as e:
             log.error(f"Unexpected error in Mistral service: {e}")
             raise ValueError(f"Unexpected error in Mistral service: {e!s}") from e
 
-    async def health_check(self) -> bool:
-        if not self.api_key:
-            log.warning("Cannot perform health check: MISTRAL_API_KEY not set")
-            return False
-
+    async def close(self, timeout: float = 10.0) -> None:
+        if self.mock_mode:
+            return
         try:
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "test"},
-                ],
-                "max_tokens": 5,
-            }
-
-            response = await self.client.post(
-                "/chat/completions",
-                json=payload,
-                timeout=5.0,
-            )
-            response.raise_for_status()
-            log.info("Mistral AI health check passed")
-            return True
-        except (httpx.HTTPError, ValueError) as e:
-            log.warning(f"Mistral AI health check failed: {e}")
-            return False
-
-    async def __aenter__(self) -> "MistralService":
-        return self
-
-    async def __aexit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
-        await self.client.aclose()
-
-    async def close(self) -> None:
-        await self.client.aclose()
+            await asyncio.wait_for(self.client.aclose(), timeout=timeout)
+        except TimeoutError:
+            log.warning("Mistral HTTP client close timeout, connections will be closed on object destruction")

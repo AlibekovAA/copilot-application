@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ConversationRepoDep, MessageRepoDep
@@ -44,7 +45,7 @@ async def create_conversation(
             messages_count=0,
         )
 
-    except Exception as e:
+    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError) as e:
         raise handle_api_error(e, "create conversation") from e
 
 
@@ -91,7 +92,7 @@ async def get_conversations(
             total=total,
         )
 
-    except Exception as e:
+    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError) as e:
         raise handle_api_error(e, "fetch conversations") from e
 
 
@@ -120,7 +121,7 @@ async def get_conversation_messages(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except (ValueError, SQLAlchemyError, RuntimeError) as e:
         raise handle_api_error(e, "fetch conversation messages") from e
 
 
@@ -148,6 +149,6 @@ async def delete_conversation(
 
     except HTTPException:
         raise
-    except Exception as e:
+    except (ValueError, SQLAlchemyError, RuntimeError) as e:
         await db.rollback()
         raise handle_api_error(e, "delete conversation") from e

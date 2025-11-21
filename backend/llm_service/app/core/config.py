@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET: str = Field(default="", description="JWT secret key for token validation")
 
+    SHUTDOWN_TIMEOUT: float = Field(default=30.0, description="Graceful shutdown timeout in seconds")
+
     class Config:
         env_file = ".env"
         case_sensitive = False

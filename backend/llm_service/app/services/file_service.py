@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import BinaryIO, ClassVar
 
 import chardet
-import fitz  # PyMuPDF
+import fitz
 from docx import Document
 from fastapi import UploadFile
 
@@ -58,7 +58,7 @@ class FileService:
             log.info(f"Successfully extracted {len(text)} characters from {file.filename}")
             return text.strip()
 
-        except Exception as e:
+        except (ValueError, OSError, RuntimeError) as e:
             log.error(f"Error extracting text from {file.filename}: {e}")
             raise ValueError(f"Failed to extract text from {file.filename}: {e!s}") from e
         finally:
@@ -112,19 +112,14 @@ class FileService:
                 try:
                     page = doc[page_num]
                     page_text = page.get_text(
-                        "text",
-                        flags=(
-                            fitz.TEXT_PRESERVE_WHITESPACE
-                            | fitz.TEXT_PRESERVE_LIGATURES
-                            | fitz.TEXT_DEHYPHENATE
-                        ),
+                        flags=(fitz.TEXT_PRESERVE_WHITESPACE | fitz.TEXT_PRESERVE_LIGATURES | fitz.TEXT_DEHYPHENATE),
                     )
 
-                    if page_text.strip():
-                        fixed_text = cls._fix_cyrillic_encoding(page_text)
+                    fixed_text = cls._fix_cyrillic_encoding(page_text)
+                    if fixed_text.strip():
                         text_parts.append(f"--- Страница {page_num + 1} ---\n{fixed_text}")
 
-                except Exception as e:
+                except (IndexError, RuntimeError, ValueError) as e:
                     log.warning(f"Failed to extract text from page {page_num + 1}: {e}")
                     continue
 
@@ -135,7 +130,7 @@ class FileService:
 
         except ValueError:
             raise
-        except Exception as e:
+        except (RuntimeError, OSError) as e:
             raise ValueError(f"Error reading PDF: {e!s}") from e
         finally:
             if doc is not None:
@@ -152,7 +147,7 @@ class FileService:
 
             return "\n\n".join(paragraphs)
 
-        except Exception as e:
+        except (ValueError, OSError, AttributeError) as e:
             raise ValueError(f"Error reading DOCX: {e!s}") from e
 
     @classmethod
@@ -174,17 +169,5 @@ class FileService:
 
             return content.decode(str(encoding), errors="replace")
 
-        except Exception as e:
+        except (UnicodeDecodeError, LookupError, OSError) as e:
             raise ValueError(f"Error reading text file: {e!s}") from e
-
-    @staticmethod
-    def get_file_info(file: UploadFile) -> dict[str, str | int]:
-        file_ext = Path(str(file.filename)).suffix.lower()
-        file_size = getattr(file, "size", 0)
-
-        return {
-            "filename": str(file.filename),
-            "extension": file_ext,
-            "content_type": file.content_type or "application/octet-stream",
-            "size": int(file_size),
-        }

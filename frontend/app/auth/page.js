@@ -25,15 +25,17 @@ function AuthPageContent() {
 
   if (isLoading || isAuthenticated) {
     return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        backgroundColor: '#0f0f0f'
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          backgroundColor: '#0f0f0f',
+        }}
+      >
         <LoadingScreen />
       </div>
     );
@@ -69,8 +71,12 @@ function AuthPageContent() {
     }
   };
 
-  const handleForgotPassword = (email) => {
-    console.log('Password reset requested for:', email);
+  const handleForgotPassword = async (email) => {
+    try {
+      toast.info('Функция восстановления пароля в разработке');
+    } catch (error) {
+      toast.error('Ошибка при отправке запроса на восстановление пароля');
+    }
   };
 
   return (
@@ -92,19 +98,23 @@ function AuthPageContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        zIndex: 9999,
-        backgroundColor: '#0f0f0f'
-      }}>
-        <LoadingScreen />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            backgroundColor: '#0f0f0f',
+          }}
+        >
+          <LoadingScreen />
+        </div>
+      }
+    >
       <AuthPageContent />
     </Suspense>
   );

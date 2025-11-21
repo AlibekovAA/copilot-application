@@ -4,9 +4,6 @@ import (
 	"backend/application"
 	"backend/config"
 	"backend/logger"
-	"context"
-	"os"
-	"os/signal"
 
 	_ "github.com/lib/pq"
 )
@@ -23,21 +20,11 @@ func main() {
 		logger.Fatalf("logger initialization failed: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	app := application.NewApplication()
 
-	if err := app.Configure(ctx, logger, cfg); err != nil {
+	if err := app.Configure(logger, cfg); err != nil {
 		logger.Fatalf("Failed to configure application: %v", err)
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	go func() {
-		<-stop
-		cancel()
-	}()
-
-	app.Run(ctx)
+	app.Run()
 }
