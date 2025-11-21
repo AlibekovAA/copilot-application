@@ -109,7 +109,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 			<Card className={styles.card}>
 				<CardHeader className={styles.textCenter}>
 					<div className={`${styles.logoContainer} ${styles.logoContainerLarge}`}>
-						<Logo className={styles.logoImage} variant="gradient" />
+						<Logo className={styles.logoImage} />
 					</div>
 					<CardTitle className={styles.titleGradient}>
 						Добро пожаловать!
@@ -152,7 +152,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</Button>
 					<div className={styles.headerContent}>
 						<div className={`${styles.logoContainer} ${styles.logoContainerSmall}`}>
-							<Logo className={styles.logoImage} variant="purple" />
+							<Logo className={styles.logoImage} />
 						</div>
 					<CardTitle className={styles.titleGradient}>
 						Вход в аккаунт
@@ -249,7 +249,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 					</Button>
 					<div className={styles.headerContent}>
 						<div className={`${styles.logoContainer} ${styles.logoContainerSmall}`}>
-							<Logo className={styles.logoImage} variant="gradient" />
+							<Logo className={styles.logoImage} />
 						</div>
 						<CardTitle className={styles.titleGradient}>
 							Восстановление пароля
@@ -322,7 +322,7 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 				</Button>
 				<div className={styles.headerContent}>
 					<div className={`${styles.logoContainer} ${styles.logoContainerSmall}`}>
-						<Logo className={styles.logoImage} variant="lime" />
+						<Logo className={styles.logoImage} />
 					</div>
 					<CardTitle className={styles.titleGradient}>
 						Регистрация

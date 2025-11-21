@@ -3,12 +3,14 @@ import argparse
 import asyncio
 import http
 import json
+import secrets
 import statistics
+import string
 import sys
-import time
 import traceback
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from time import time
 
 import aiohttp
 
@@ -18,7 +20,11 @@ PERCENT_MULTIPLIER = 100.0
 MAX_ERROR_BODY_LENGTH = 100
 HTTP_SUCCESS_MIN = http.HTTPStatus.OK
 HTTP_SUCCESS_MAX = http.HTTPStatus.MULTIPLE_CHOICES
-TEST_PASSWORD = "test_password_123"  # noqa: S105
+
+
+def generate_test_password(length: int = 12) -> str:
+    chars = string.ascii_letters + string.digits
+    return "".join(secrets.choice(chars) for _ in range(length))
 
 
 def percentile(values: list[float], p: float) -> float:
@@ -40,7 +46,7 @@ class RequestResult:
     status_code: int
     response_time: float
     error: str | None = None
-    timestamp: float = field(default_factory=time.time)
+    timestamp: float = field(default_factory=time)
 
 
 @dataclass
@@ -52,7 +58,7 @@ class Metrics:
     status_codes: Counter = field(default_factory=Counter)
     errors: Counter = field(default_factory=Counter)
     endpoint_metrics: dict[str, list[float]] = field(default_factory=lambda: defaultdict(list))
-    start_time: float = field(default_factory=time.time)
+    start_time: float = field(default_factory=time)
     end_time: float | None = None
 
     def add_result(self, result: RequestResult):
@@ -69,7 +75,7 @@ class Metrics:
                 self.errors[result.error] += 1
 
     def get_statistics(self) -> dict:
-        duration = (self.end_time or time.time()) - self.start_time
+        duration = (self.end_time or time()) - self.start_time
         duration = max(duration, 0.0)
         rps = self.total_requests / duration if duration > 0 else 0.0
 
@@ -176,255 +182,194 @@ class LoadTester:
 
     async def create_session(self):
         timeout = aiohttp.ClientTimeout(total=30, connect=10)
-        connector = aiohttp.TCPConnector(limit=0)
+        connector = aiohttp.TCPConnector(limit=0, limit_per_host=100)
         self.session = aiohttp.ClientSession(timeout=timeout, connector=connector)
 
     async def close_session(self):
         if self.session and not self.session.closed:
             await self.session.close()
 
-    async def create_conversation(self, user_id: int) -> int | None:
+    async def _make_request(
+        self,
+        method: str,
+        url: str,
+        json_payload: dict | None = None,
+        form_data: aiohttp.FormData | None = None,
+        endpoint: str = "",
+    ) -> RequestResult:
         if not self.session:
-            return None
+            return RequestResult(endpoint=endpoint, status_code=0, response_time=0.0, error="No session")
 
+        start_time = time()
+        result: RequestResult | None = None
+
+        try:
+            if method == "POST" and json_payload:
+                async with self.session.post(url, json=json_payload, headers=self.auth_headers) as response:
+                    response_time = time() - start_time
+                    result = RequestResult(endpoint=endpoint, status_code=response.status, response_time=response_time)
+                    if not (HTTP_SUCCESS_MIN <= response.status < HTTP_SUCCESS_MAX):
+                        body = await response.text()
+                        result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
+            elif method == "POST" and form_data:
+                async with self.session.post(url, data=form_data, headers=self.auth_headers) as response:
+                    response_time = time() - start_time
+                    result = RequestResult(endpoint=endpoint, status_code=response.status, response_time=response_time)
+                    if not (HTTP_SUCCESS_MIN <= response.status < HTTP_SUCCESS_MAX):
+                        body = await response.text()
+                        result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
+            elif method == "GET":
+                async with self.session.get(url, headers=self.auth_headers) as response:
+                    response_time = time() - start_time
+                    result = RequestResult(endpoint=endpoint, status_code=response.status, response_time=response_time)
+                    if not (HTTP_SUCCESS_MIN <= response.status < HTTP_SUCCESS_MAX):
+                        body = await response.text()
+                        result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
+            else:
+                result = RequestResult(
+                    endpoint=endpoint, status_code=0, response_time=time() - start_time, error="Invalid method"
+                )
+        except TimeoutError:
+            result = RequestResult(endpoint=endpoint, status_code=0, response_time=time() - start_time, error="Timeout")
+        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
+            result = RequestResult(endpoint=endpoint, status_code=0, response_time=time() - start_time, error=str(e))
+
+        return (
+            result
+            if result is not None
+            else RequestResult(
+                endpoint=endpoint, status_code=0, response_time=time() - start_time, error="Unknown error"
+            )
+        )
+
+    async def create_conversation(self, user_id: int) -> int | None:
         payload = {
             "title": f"Load Test Conversation {user_id}",
             "business_context": "Testing",
         }
+        result = await self._make_request(
+            "POST", f"{self.base_url}/conversations", json_payload=payload, endpoint="/conversations"
+        )
+        self.metrics.add_result(result)
 
-        start_time = time.time()
-        conversation_id: int | None = None
-
-        try:
-            async with self.session.post(
-                f"{self.base_url}/conversations",
-                json=payload,
-                headers=self.auth_headers,
-            ) as response:
-                response_time = time.time() - start_time
-                body = await response.text()
-
-                result = RequestResult(
-                    endpoint="/conversations",
-                    status_code=response.status,
-                    response_time=response_time,
+        if result.status_code == http.HTTPStatus.CREATED and self.session:
+            start_time = time()
+            try:
+                async with self.session.post(
+                    f"{self.base_url}/conversations",
+                    json=payload,
+                    headers=self.auth_headers,
+                ) as response:
+                    data = await response.json()
+                    conv_id = data.get("conversation_id")
+                    if conv_id is not None:
+                        conversation_id = int(conv_id)
+                        self.conversation_ids[user_id] = conversation_id
+                        return conversation_id
+                    else:
+                        result.error = "Conversation ID is missing"
+                        return None
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+                result.error = f"Failed to parse conversation ID: {e!s}"
+                return None
+            except (aiohttp.ClientError, OSError, ConnectionError) as e:
+                self.metrics.add_result(
+                    RequestResult(
+                        endpoint="/conversations", status_code=0, response_time=time() - start_time, error=str(e)
+                    )
                 )
-
-                if response.status == http.HTTPStatus.CREATED:
-                    try:
-                        data = await response.json()
-                        conv_id = data.get("conversation_id")
-                        if conv_id is not None:
-                            conversation_id = int(conv_id)
-                            self.conversation_ids[user_id] = conversation_id
-                        else:
-                            result.error = "Conversation ID is missing"
-                    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-                        result.error = "Failed to parse conversation ID"
-                else:
-                    result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
-
-                self.metrics.add_result(result)
-                return conversation_id
-        except TimeoutError:
-            result = RequestResult(
-                endpoint="/conversations",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error="Timeout",
-            )
-            self.metrics.add_result(result)
-            return None
-        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
-            result = RequestResult(
-                endpoint="/conversations",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error=str(e),
-            )
-            self.metrics.add_result(result)
-            return None
+                return None
+        return None
 
     async def send_chat_message(self, conversation_id: int, message: str, domain: str = "general"):
-        if not self.session:
-            return
-
         data = aiohttp.FormData()
         data.add_field("conversation_id", str(conversation_id))
         data.add_field("message", message)
         data.add_field("domain", domain)
-
-        start_time = time.time()
-        try:
-            async with self.session.post(
-                f"{self.base_url}/chat",
-                data=data,
-                headers=self.auth_headers,
-            ) as response:
-                response_time = time.time() - start_time
-                body = await response.text()
-
-                result = RequestResult(
-                    endpoint="/chat",
-                    status_code=response.status,
-                    response_time=response_time,
-                )
-
-                if response.status != http.HTTPStatus.OK:
-                    result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
-
-                self.metrics.add_result(result)
-        except TimeoutError:
-            result = RequestResult(
-                endpoint="/chat",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error="Timeout",
-            )
-            self.metrics.add_result(result)
-        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
-            result = RequestResult(
-                endpoint="/chat",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error=str(e),
-            )
-            self.metrics.add_result(result)
+        result = await self._make_request("POST", f"{self.base_url}/chat", form_data=data, endpoint="/chat")
+        self.metrics.add_result(result)
 
     async def get_conversations(self):
-        if not self.session:
-            return
-
-        start_time = time.time()
-        try:
-            async with self.session.get(
-                f"{self.base_url}/conversations?limit=50&offset=0",
-                headers=self.auth_headers,
-            ) as response:
-                response_time = time.time() - start_time
-                body = await response.text()
-
-                result = RequestResult(
-                    endpoint="/conversations",
-                    status_code=response.status,
-                    response_time=response_time,
-                )
-
-                if response.status != http.HTTPStatus.OK:
-                    result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
-
-                self.metrics.add_result(result)
-        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
-            result = RequestResult(
-                endpoint="/conversations",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error=str(e),
-            )
-            self.metrics.add_result(result)
+        result = await self._make_request(
+            "GET", f"{self.base_url}/conversations?limit=50&offset=0", endpoint="/conversations"
+        )
+        self.metrics.add_result(result)
 
     async def get_messages(self, conversation_id: int):
-        if not self.session:
-            return
-
-        start_time = time.time()
-        endpoint = f"/conversations/{conversation_id}/messages"
-
-        try:
-            async with self.session.get(
-                f"{self.base_url}{endpoint}",
-                headers=self.auth_headers,
-            ) as response:
-                response_time = time.time() - start_time
-                body = await response.text()
-
-                result = RequestResult(
-                    endpoint="/conversations/{id}/messages",
-                    status_code=response.status,
-                    response_time=response_time,
-                )
-
-                if response.status != http.HTTPStatus.OK:
-                    result.error = f"Status {response.status}: {body[:MAX_ERROR_BODY_LENGTH]}"
-
-                self.metrics.add_result(result)
-        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
-            result = RequestResult(
-                endpoint="/conversations/{id}/messages",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error=str(e),
-            )
-            self.metrics.add_result(result)
+        result = await self._make_request(
+            "GET", f"{self.base_url}/conversations/{conversation_id}/messages", endpoint="/conversations/{id}/messages"
+        )
+        self.metrics.add_result(result)
 
     async def health_check(self):
-        if not self.session:
-            return
-
-        start_time = time.time()
-        try:
-            async with self.session.get(f"{self.base_url}/health") as response:
-                response_time = time.time() - start_time
-
-                result = RequestResult(
-                    endpoint="/health",
-                    status_code=response.status,
-                    response_time=response_time,
-                )
-
-                if response.status != http.HTTPStatus.OK:
-                    result.error = f"Status {response.status}"
-
-                self.metrics.add_result(result)
-        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
-            result = RequestResult(
-                endpoint="/health",
-                status_code=0,
-                response_time=time.time() - start_time,
-                error=str(e),
-            )
-            self.metrics.add_result(result)
+        result = await self._make_request("GET", f"{self.base_url}/health", endpoint="/health")
+        self.metrics.add_result(result)
 
     async def user_workload(self, user_id: int):
-        if self.ramp_up > 0 and self.concurrent_users > 0:
-            delay = user_id * (self.ramp_up / self.concurrent_users)
-            await asyncio.sleep(delay)
-
-        conversation_id = await self.create_conversation(user_id)
-        if not conversation_id:
+        try:
+            if self.ramp_up > 0 and self.concurrent_users > 0:
+                delay = user_id * (self.ramp_up / self.concurrent_users)
+                await asyncio.sleep(delay)
+        except asyncio.CancelledError:
             return
 
-        domains = ["general", "legal", "marketing", "finance", "sales", "management", "hr"]
-        messages = [
-            "Привет, как дела?",
-            "Расскажи о себе",
-            "Что ты умеешь?",
-            "Помоги с вопросом",
-            "Объясни подробнее",
-        ]
+        try:
+            conversation_id = await self.create_conversation(user_id)
+            if not conversation_id:
+                return
+        except (aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
+            self.metrics.add_result(
+                RequestResult(
+                    endpoint="/conversations",
+                    status_code=0,
+                    response_time=0.0,
+                    error=f"User {user_id} failed to create conversation: {e!s}",
+                )
+            )
+            return None
 
         health_check_counter = 0
         while self.running:
-            domain = domains[user_id % len(domains)]
-            message = messages[user_id % len(messages)]
-            await self.send_chat_message(conversation_id, message, domain)
+            try:
+                await self.send_chat_message(conversation_id, "Hello, how are you?", "general")
 
-            if health_check_counter % 10 == 0:
-                await self.health_check()
+                if health_check_counter % 10 == 0:
+                    await self.health_check()
 
-            if health_check_counter % 5 == 0:
-                await self.get_conversations()
-                await self.get_messages(conversation_id)
+                if health_check_counter % 5 == 0:
+                    await self.get_conversations()
+                    await self.get_messages(conversation_id)
 
-            health_check_counter += 1
+                health_check_counter += 1
 
-            if self.think_time > 0:
-                await asyncio.sleep(self.think_time)
+                if self.think_time > 0:
+                    await asyncio.sleep(self.think_time)
+            except asyncio.CancelledError:
+                break
+            except (TimeoutError, aiohttp.ClientError, OSError, ConnectionError, ValueError) as e:
+                self.metrics.add_result(
+                    RequestResult(
+                        endpoint="user_request",
+                        status_code=0,
+                        response_time=0.0,
+                        error=f"User {user_id} request failed: {e!s}",
+                    )
+                )
+                continue
+            except json.JSONDecodeError as e:
+                self.metrics.add_result(
+                    RequestResult(
+                        endpoint="user_request",
+                        status_code=0,
+                        response_time=0.0,
+                        error=f"User {user_id} JSON parse error: {e!s}",
+                    )
+                )
+                continue
 
     async def _login_user(self, email: str, password: str) -> str | None:
         if not self.session:
             return None
-
         try:
             async with self.session.post(
                 f"{self.go_backend_url}/login",
@@ -447,16 +392,15 @@ class LoadTester:
             TypeError,
             json.JSONDecodeError,
         ):
-            return None
-
+            pass
         return None
 
     async def get_jwt_token_from_go_backend(self) -> str | None:
         if not self.session:
             return None
 
-        email = f"loadtest_{int(time.time() * 1000)}@test.com"
-        password = TEST_PASSWORD
+        password = generate_test_password()
+        email = f"loadtest_{int(time() * 1000)}@test.com"
         name = "Load Test User"
 
         try:
@@ -474,7 +418,6 @@ class LoadTester:
 
                 if response.status == http.HTTPStatus.CONFLICT:
                     return await self._login_user(email, password)
-
         except (
             TimeoutError,
             aiohttp.ClientError,
@@ -485,14 +428,12 @@ class LoadTester:
             TypeError,
             json.JSONDecodeError,
         ):
-            return None
-
+            pass
         return None
 
     async def check_server_availability(self) -> bool:
         if not self.session:
             return False
-
         try:
             async with self.session.get(
                 f"{self.base_url}/health",
@@ -501,6 +442,7 @@ class LoadTester:
                 return response.status == http.HTTPStatus.OK
         except (TimeoutError, aiohttp.ClientError, OSError, ConnectionError):
             return False
+        return False
 
     async def run(self):
         await self.create_session()
@@ -517,7 +459,7 @@ class LoadTester:
             sys.exit(1)
 
         self.running = True
-        self.metrics.start_time = time.time()
+        self.metrics.start_time = time()
 
         tasks = [asyncio.create_task(self.user_workload(i)) for i in range(self.concurrent_users)]
 
@@ -526,7 +468,7 @@ class LoadTester:
         finally:
             self.running = False
             await asyncio.gather(*tasks, return_exceptions=True)
-            self.metrics.end_time = time.time()
+            self.metrics.end_time = time()
             await self.close_session()
 
     def get_results(self) -> dict:
@@ -545,7 +487,7 @@ async def main():
         "--jwt-token",
         type=str,
         default=None,
-        help=("JWT токен для аутентификации (если не указан, будет получен автоматически через Go бекенд)"),
+        help="JWT токен для аутентификации (если не указан, будет получен автоматически через Go бекенд)",
     )
     parser.add_argument(
         "--go-backend-url",
@@ -581,7 +523,7 @@ async def main():
         "--output",
         type=str,
         default="results.json",
-        help=("Имя файла для сохранения результатов в JSON (по умолчанию: results.json)"),
+        help="Имя файла для сохранения результатов в JSON (по умолчанию: results.json)",
     )
 
     args = parser.parse_args()

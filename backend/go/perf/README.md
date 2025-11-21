@@ -20,6 +20,8 @@ docker-compose -f docker-compose.go-only.yml up --build -d
 python load_test.py
 ```
 
+Результаты будут сохранены в файл `load_test_<timestamp>.json`
+
 ### С параметрами:
 
 ```bash
@@ -29,10 +31,11 @@ python load_test.py --url http://localhost:8080 --users 50 --duration 120 --ramp
 ### Параметры:
 
 - `--url` - Базовый URL сервера (по умолчанию: http://localhost:8080)
-- `--users` - Количество concurrent пользователей (по умолчанию: 100)
-- `--duration` - Длительность теста в секундах (по умолчанию: 120)
+- `--users` - Количество concurrent пользователей (по умолчанию: 10)
+- `--duration` - Длительность теста в секундах (по умолчанию: 60)
 - `--ramp-up` - Время постепенного увеличения нагрузки в секундах (по умолчанию: 0)
-- `--output` - Путь для сохранения результатов в JSON формате
+- `--think-time` - Пауза между циклами пользователя в секундах (по умолчанию: 0.1)
+- `--output` - Имя файла для сохранения результатов (без расширения, по умолчанию: load*test*<timestamp>.json)
 
 ### Примеры:
 
@@ -48,11 +51,15 @@ python load_test.py --users 100 --duration 120
 python load_test.py --users 50 --duration 180 --ramp-up 30
 ```
 
-Сохранение результатов в файл:
+Сохранение результатов с указанием имени файла:
 
 ```bash
-python load_test.py --users 20 --duration 60 --output results.json
+python load_test.py --users 20 --duration 60 --output my_test_results
 ```
+
+**Результаты всегда сохраняются в JSON файл.** Если `--output` не указан, файл будет создан с именем `load_test_<timestamp>.json`. Если указан `--output`, файл будет сохранен с указанным именем (расширение `.json` добавляется автоматически).
+
+В случае ошибки (например, сервер недоступен) информация об ошибке будет сохранена в файл `load_test_error_<timestamp>.json`.
 
 ## Собираемые метрики
 

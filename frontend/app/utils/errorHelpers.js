@@ -1,5 +1,18 @@
 const translateErrorMessage = (message) => {
   if (!message) return '';
+
+  const translations = {
+    'invalid credentials': 'Неверный email или пароль',
+    invalid_credentials: 'Неверный email или пароль',
+  };
+
+  const lowerMessage = message.toLowerCase();
+  for (const [key, translation] of Object.entries(translations)) {
+    if (lowerMessage.includes(key)) {
+      return translation;
+    }
+  }
+
   return message.replace(
     /string should have at most 10000 characters/gi,
     'Сообщение должно содержать не более 10 000 символов.',

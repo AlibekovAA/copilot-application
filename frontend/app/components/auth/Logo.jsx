@@ -1,12 +1,10 @@
-export function Logo({ className = '', variant = 'gradient', alt = 'Logo' }) {
+export function Logo({ className = '' }) {
 	return (
 		<img
 			src="/logo_color/Group%203.svg"
-			alt={alt}
+			alt="Logo"
 			className={`${className} object-contain`}
 			loading="lazy"
 		/>
 	);
 }
-
-

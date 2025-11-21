@@ -7,10 +7,8 @@ import { cn } from '../ui/utils';
 import { TYPING_INTERVAL_MS } from '../../utils/apiHelpers';
 import { formatFileSize } from '../../utils/fileValidation';
 import { useToast } from '../ui/toast';
+import { Markdown } from '../ui/markdown';
 import styles from './ConversationView.module.css';
-
-const USER_LABEL = 'Вы';
-const ASSISTANT_LABEL = 'AI';
 
 export function ConversationView({ messages, typingState, onTypingComplete, isLoadingAnswer }) {
   const bottomRef = useRef(null);
@@ -89,9 +87,20 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
     };
   }, []);
 
-  const handleCopy = (messageId, content) => {
+  const handleCopy = async (messageId, content) => {
+    if (!content || typeof content !== 'string') {
+      console.error('Invalid content to copy:', content);
+      toast.error('Нет текста для копирования');
+      return;
+    }
+
     if (copyTimeoutRef.current) {
       window.clearTimeout(copyTimeoutRef.current);
+    }
+
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      toast.error('Копирование недоступно в вашем браузере');
+      return;
     }
 
     navigator.clipboard.writeText(content)
@@ -118,33 +127,6 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
   const isTypingMessage = (message) =>
     message.id === typingState.messageId && animatedText.length < typingState.fullText.length;
 
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    if (Number.isNaN(date.getTime())) return '';
-
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMinutes = Math.floor(diffMs / 60000);
-
-    if (diffMinutes < 1) return 'только что';
-    if (diffMinutes < 60) return `${diffMinutes} мин назад`;
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} ч назад`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 7) return `${diffDays} д назад`;
-
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getMessageLabel = (role) => (role === 'user' ? USER_LABEL : ASSISTANT_LABEL);
-
   const showThinkingIndicator = isLoadingAnswer && messages.length > 0 &&
     messages[messages.length - 1]?.role === 'user' &&
     !messages.some(m => m.role === 'assistant' && m.id === typingState.messageId);
@@ -153,7 +135,6 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
     <div className={styles.conversationList}>
       {messages.map(message => {
         const content = getMessageContent(message);
-        const label = getMessageLabel(message.role);
         const isAssistant = message.role === 'assistant';
         const showTypingIndicator = isTypingMessage(message);
 
@@ -186,14 +167,24 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
               )}
 
               <div className={styles.messageTextWrapper}>
-                <p className={styles.messageText}>
-                  {content}
-                  {showTypingIndicator && <span className={styles.typingCaret} />}
-                </p>
+                {showTypingIndicator ? (
+                  <p className={styles.messageText}>
+                    {content}
+                    <span className={styles.typingCaret} />
+                  </p>
+                ) : (
+                  <div className={styles.messageText}>
+                    <Markdown>{content}</Markdown>
+                  </div>
+                )}
                 {!showTypingIndicator && content && (
                   <button
                     type="button"
-                    onClick={() => handleCopy(message.id, message.content)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCopy(message.id, message.content);
+                    }}
                     className={cn(
                       styles.copyButton,
                       copiedMessageId === message.id && styles.copyButtonCopied,
