@@ -4,9 +4,9 @@ import asyncio
 import json
 import statistics
 import sys
-import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from time import time
 from typing import Dict, List, Optional
 
 import aiohttp
@@ -31,7 +31,7 @@ class RequestResult:
     status_code: int
     response_time: float
     error: Optional[str] = None
-    timestamp: float = field(default_factory=time.time)
+    timestamp: float = field(default_factory=time)
 
 
 @dataclass
@@ -43,7 +43,7 @@ class Metrics:
     status_codes: Counter = field(default_factory=Counter)
     errors: Counter = field(default_factory=Counter)
     endpoint_metrics: Dict[str, List[float]] = field(default_factory=lambda: defaultdict(list))
-    start_time: float = field(default_factory=time.time)
+    start_time: float = field(default_factory=time)
     end_time: Optional[float] = None
 
     def add_result(self, result: RequestResult):
@@ -60,7 +60,7 @@ class Metrics:
                 self.errors[result.error] += 1
 
     def get_statistics(self) -> Dict:
-        duration = (self.end_time or time.time()) - self.start_time
+        duration = (self.end_time or time()) - self.start_time
         duration = max(duration, 0.0)
         rps = self.total_requests / duration if duration > 0 else 0.0
 
@@ -165,13 +165,13 @@ class LoadTester:
         if not self.session:
             return None
 
-        email = f"loadtest_{user_id}_{int(time.time() * 1000)}@test.com"
+        email = f"loadtest_{user_id}_{int(time() * 1000)}@test.com"
         password = "test_password_123"
         name = f"Load Test User {user_id}"
 
         payload = {"email": email, "password": password, "name": name}
 
-        start_time = time.time()
+        start_time = time()
         token: Optional[str] = None
         try:
             async with self.session.post(
@@ -179,7 +179,7 @@ class LoadTester:
                 json=payload,
                 headers={"Content-Type": "application/json"},
             ) as response:
-                response_time = time.time() - start_time
+                response_time = time() - start_time
                 body = await response.text()
 
                 result = RequestResult(
@@ -208,7 +208,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/register",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error="Timeout",
             )
             self.metrics.add_result(result)
@@ -217,7 +217,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/register",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error=str(e),
             )
             self.metrics.add_result(result)
@@ -229,7 +229,7 @@ class LoadTester:
 
         payload = {"email": email, "password": password}
 
-        start_time = time.time()
+        start_time = time()
         token: Optional[str] = None
         try:
             async with self.session.post(
@@ -237,7 +237,7 @@ class LoadTester:
                 json=payload,
                 headers={"Content-Type": "application/json"},
             ) as response:
-                response_time = time.time() - start_time
+                response_time = time() - start_time
                 body = await response.text()
 
                 result = RequestResult(
@@ -263,7 +263,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/login",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error="Timeout",
             )
             self.metrics.add_result(result)
@@ -272,7 +272,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/login",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error=str(e),
             )
             self.metrics.add_result(result)
@@ -284,13 +284,13 @@ class LoadTester:
 
         headers = {"Authorization": f"Bearer {token}"}
 
-        start_time = time.time()
+        start_time = time()
         try:
             async with self.session.get(
                 f"{self.base_url}/api/profile",
                 headers=headers,
             ) as response:
-                response_time = time.time() - start_time
+                response_time = time() - start_time
                 body = await response.text()
 
                 result = RequestResult(
@@ -307,7 +307,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/api/profile",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error="Timeout",
             )
             self.metrics.add_result(result)
@@ -315,7 +315,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/api/profile",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error=str(e),
             )
             self.metrics.add_result(result)
@@ -324,10 +324,10 @@ class LoadTester:
         if not self.session:
             return
 
-        start_time = time.time()
+        start_time = time()
         try:
             async with self.session.get(f"{self.base_url}/health") as response:
-                response_time = time.time() - start_time
+                response_time = time() - start_time
 
                 result = RequestResult(
                     endpoint="/health",
@@ -343,7 +343,7 @@ class LoadTester:
             result = RequestResult(
                 endpoint="/health",
                 status_code=0,
-                response_time=time.time() - start_time,
+                response_time=time() - start_time,
                 error=str(e),
             )
             self.metrics.add_result(result)
@@ -390,23 +390,12 @@ class LoadTester:
     async def run(self):
         await self.create_session()
 
-        print("Проверка доступности сервера...")
         if not await self.check_server_availability():
-            print(f"ОШИБКА: Сервер недоступен по адресу {self.base_url}")
-            print("Убедитесь, что сервер запущен и доступен.")
             await self.close_session()
-            sys.exit(1)
-        print("Сервер доступен. Начинаю нагрузочное тестирование...")
-
-        print(f"URL: {self.base_url}")
-        print(f"Concurrent пользователей: {self.concurrent_users}")
-        print(f"Длительность: {self.duration} секунд")
-        print(f"Ramp-up: {self.ramp_up} секунд")
-        print(f"Think-time: {self.think_time:.3f} секунд")
-        print("-" * 60)
+            raise RuntimeError(f"Сервер недоступен по адресу {self.base_url}")
 
         self.running = True
-        self.metrics.start_time = time.time()
+        self.metrics.start_time = time()
 
         tasks = [asyncio.create_task(self.user_workload(i)) for i in range(self.concurrent_users)]
 
@@ -415,74 +404,11 @@ class LoadTester:
         finally:
             self.running = False
             await asyncio.gather(*tasks, return_exceptions=True)
-            self.metrics.end_time = time.time()
+            self.metrics.end_time = time()
             await self.close_session()
 
-    def print_results(self):
-        stats = self.metrics.get_statistics()
-
-        print("\n" + "=" * 60)
-        print("РЕЗУЛЬТАТЫ НАГРУЗОЧНОГО ТЕСТИРОВАНИЯ")
-        print("=" * 60)
-
-        print("\nОбщие метрики:")
-        print(f"  Длительность: {stats['duration_seconds']:.2f} сек")
-        print(f"  Всего запросов: {stats['total_requests']}")
-        print(f"  Успешных: {stats['successful_requests']}")
-        print(f"  Неудачных: {stats['failed_requests']}")
-        print(f"  Процент успеха: {stats['success_rate']:.2f}%")
-        print(f"  RPS (общий): {stats['requests_per_second']:.2f}")
-
-        rt = stats["response_time"]
-        if stats["total_requests"] > 0:
-            print("\nВремя отклика (мс):")
-            print(f"  Min: {rt['min'] * 1000:.2f}")
-            print(f"  Max: {rt['max'] * 1000:.2f}")
-            print(f"  Mean: {rt['mean'] * 1000:.2f}")
-            print(f"  Median: {rt['median'] * 1000:.2f}")
-            print(f"  P50: {rt['p50'] * 1000:.2f}")
-            print(f"  P75: {rt['p75'] * 1000:.2f}")
-            print(f"  P90: {rt['p90'] * 1000:.2f}")
-            print(f"  P95: {rt['p95'] * 1000:.2f}")
-            print(f"  P99: {rt['p99'] * 1000:.2f}")
-            print(f"  Std Dev: {rt['std_dev'] * 1000:.2f}")
-        else:
-            print("\nВремя отклика: нет данных (запросы не были выполнены)")
-
-        if stats["status_codes"]:
-            print("\nКоды ответов:")
-            for code, count in sorted(stats["status_codes"].items()):
-                percentage = (count / stats["total_requests"] * 100.0) if stats["total_requests"] > 0 else 0.0
-                print(f"  {code}: {count} ({percentage:.2f}%)")
-        else:
-            print("\nКоды ответов: нет данных")
-
-        if stats["errors"]:
-            print("\nОшибки:")
-            sorted_errors = sorted(stats["errors"].items(), key=lambda x: x[1], reverse=True)
-            for error, count in sorted_errors[:10]:
-                print(f"  {error}: {count}")
-
-        if stats["success_rate"] == 0.0 and stats["total_requests"] > 0:
-            print("\n⚠️  ВНИМАНИЕ: Все запросы завершились с ошибками!")
-            print("   Проверьте, что сервер запущен и доступен.")
-
-        if stats["endpoint_metrics"]:
-            print("\nМетрики по эндпоинтам:")
-            for endpoint, ep_stats in stats["endpoint_metrics"].items():
-                if ep_stats["count"] > 0:
-                    print(f"  {endpoint}:")
-                    print(f"    Запросов: {ep_stats['count']}")
-                    print(f"    RPS: {ep_stats['rps']:.2f}")
-                    print(f"    Mean: {ep_stats['mean'] * 1000:.2f} мс")
-                    print(f"    P95: {ep_stats['p95'] * 1000:.2f} мс")
-                    print(f"    P99: {ep_stats['p99'] * 1000:.2f} мс")
-        else:
-            print("\nМетрики по эндпоинтам: нет данных")
-
-        print("=" * 60)
-
-        return stats
+    def get_results(self):
+        return self.metrics.get_statistics()
 
 
 async def main():
@@ -521,7 +447,7 @@ async def main():
         "--output",
         type=str,
         default=None,
-        help="Путь для сохранения результатов в JSON",
+        help="Имя файла для сохранения результатов (без расширения, по умолчанию: load_test_<timestamp>.json)",
     )
 
     args = parser.parse_args()
@@ -536,22 +462,43 @@ async def main():
 
     try:
         await tester.run()
-        stats = tester.print_results()
+        stats = tester.get_results()
 
         if args.output:
-            with open(args.output, "w", encoding="utf-8") as f:
-                json.dump(stats, f, indent=2, ensure_ascii=False)
-            print(f"\nРезультаты сохранены в {args.output}")
+            output_file = args.output if args.output.endswith(".json") else f"{args.output}.json"
+        else:
+            timestamp = int(time())
+            output_file = f"load_test_{timestamp}.json"
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2, ensure_ascii=False)
     except KeyboardInterrupt:
-        print("\nТест прерван пользователем")
         tester.running = False
-        stats = tester.print_results()
+        stats = tester.get_results()
+
+        if args.output:
+            output_file = args.output if args.output.endswith(".json") else f"{args.output}.json"
+        else:
+            timestamp = int(time())
+            output_file = f"load_test_{timestamp}.json"
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(stats, f, indent=2, ensure_ascii=False)
         sys.exit(1)
     except Exception as e:
-        print(f"\nОшибка при выполнении теста: {e}")
-        import traceback
+        error_result = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+        }
 
-        traceback.print_exc()
+        if args.output:
+            output_file = args.output if args.output.endswith(".json") else f"{args.output}.json"
+        else:
+            timestamp = int(time)
+            output_file = f"load_test_error_{timestamp}.json"
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(error_result, f, indent=2, ensure_ascii=False)
         sys.exit(1)
 
 

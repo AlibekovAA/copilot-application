@@ -74,7 +74,6 @@
   font-size: 0.85rem;
   line-height: 1.6;
   color: var(--app-text-primary);
-  white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -82,6 +81,10 @@
   padding-right: 2.5rem;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.messageText:has(.markdown) {
+  white-space: normal;
 }
 
 

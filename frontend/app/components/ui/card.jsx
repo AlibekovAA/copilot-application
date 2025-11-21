@@ -42,16 +42,6 @@ function CardDescription({ className, ...props }) {
 	);
 }
 
-function CardAction({ className, ...props }) {
-	return (
-		<div
-			data-slot="card-action"
-			className={cn(styles.cardAction, className)}
-			{...props}
-		/>
-	);
-}
-
 function CardContent({ className, ...props }) {
 	return (
 		<div
@@ -77,8 +67,6 @@ export {
 	CardHeader,
 	CardFooter,
 	CardTitle,
-	CardAction,
 	CardDescription,
 	CardContent,
 };
-

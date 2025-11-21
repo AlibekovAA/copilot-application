@@ -42,6 +42,11 @@ const (
 )
 
 func (app *Application) healthHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+	app.logger.Debugf("Health check: IP=%s", clientIP)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
@@ -51,28 +56,40 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-
 func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		app.logger.Infof("Registration attempt failed: invalid request body from IP %s", clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
+	app.logger.Infof("Registration attempt: email=%s, name=%s, IP=%s", req.Email, req.Name, clientIP)
+
 	if req.Email == "" || req.Password == "" || req.Name == "" {
+		app.logger.Infof("Registration failed: missing required fields for email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "missing required fields")
 		return
 	}
 
 	if !emailRegex.MatchString(req.Email) {
+		app.logger.Infof("Registration failed: invalid email format for email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "invalid email format")
 		return
 	}
 
 	if len(req.Name) < 2 {
+		app.logger.Infof("Registration failed: name too short for email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "name must be at least 2 characters long")
 		return
 	}
 
 	if len(req.Password) < 8 {
+		app.logger.Infof("Registration failed: password too short for email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "password must be at least 8 characters long")
 		return
 	}
@@ -82,6 +99,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 
 	_, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil {
+		app.logger.Infof("Registration failed: email already exists email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusConflict, "email already exists")
 		return
 	}
@@ -120,6 +138,8 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	app.logger.Infof("Registration successful: user_id=%d, email=%s, name=%s, IP=%s", createdUser.ID, createdUser.Email, createdUser.Name, clientIP)
+
 	app.respondWithJSON(w, http.StatusCreated, map[string]any{
 		"token": token,
 		"user": map[string]any{
@@ -133,13 +153,22 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		app.logger.Infof("Login attempt failed: invalid request body from IP %s", clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
+	app.logger.Infof("Login attempt: email=%s, IP=%s", req.Email, clientIP)
+
 	if req.Email == "" || req.Password == "" {
+		app.logger.Infof("Login failed: missing required fields for email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusBadRequest, "missing required fields")
 		return
 	}
@@ -149,11 +178,13 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
+		app.logger.Infof("Login failed: user not found email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(req.Password)); err != nil {
+		app.logger.Infof("Login failed: invalid password for user_id=%d, email=%s, IP=%s", user.ID, req.Email, clientIP)
 		app.respondWithError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -164,6 +195,8 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 		app.respondWithError(w, http.StatusInternalServerError, "token generation failed")
 		return
 	}
+
+	app.logger.Infof("Login successful: user_id=%d, email=%s, name=%s, IP=%s", user.ID, user.Email, user.Name, clientIP)
 
 	app.respondWithJSON(w, http.StatusOK, map[string]any{
 		"token": token,
@@ -176,12 +209,20 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+
 	userID, ok1 := r.Context().Value(userIDKey).(int64)
 	email, ok2 := r.Context().Value(emailKey).(string)
 	if !ok1 || !ok2 {
+		app.logger.Warnf("Profile request failed: missing user context, IP=%s", clientIP)
 		app.respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+
+	app.logger.Infof("Profile request: user_id=%d, email=%s, IP=%s", userID, email, clientIP)
 
 	app.respondWithJSON(w, http.StatusOK, map[string]any{
 		"user_id": userID,
@@ -192,11 +233,20 @@ func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
 func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
+	clientIP := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		clientIP = forwarded
+	}
+
 	userID, ok := r.Context().Value(userIDKey).(int64)
-	if !ok {
+	email, ok2 := r.Context().Value(emailKey).(string)
+	if !ok || !ok2 {
+		app.logger.Warnf("Change password request failed: missing user context, IP=%s", clientIP)
 		app.respondWithError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+
+	app.logger.Infof("Change password request: user_id=%d, email=%s, IP=%s", userID, email, clientIP)
 
 	var req ChangePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -250,13 +300,21 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	app.logger.Infof("Password changed successfully: user_id=%d, email=%s, IP=%s", userID, email, clientIP)
+
 	app.respondWithJSON(w, http.StatusOK, map[string]string{"message": "password updated successfully"})
 }
 
 func (app *Application) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP := r.RemoteAddr
+		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+			clientIP = forwarded
+		}
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
+			app.logger.Warnf("Auth failed: missing authorization header, path=%s, IP=%s", r.URL.Path, clientIP)
 			app.respondWithError(w, http.StatusUnauthorized, "missing authorization header")
 			return
 		}
@@ -270,6 +328,7 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
+			app.logger.Warnf("Auth failed: invalid token, path=%s, IP=%s, error=%v", r.URL.Path, clientIP, err)
 			app.respondWithError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
@@ -277,6 +336,7 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
 			userIDFloat, ok := claims["user_id"].(float64)
 			if !ok {
+				app.logger.Warnf("Auth failed: invalid user_id in token, path=%s, IP=%s", r.URL.Path, clientIP)
 				app.respondWithError(w, http.StatusUnauthorized, "invalid user_id in token")
 				return
 			}
@@ -284,14 +344,18 @@ func (app *Application) authMiddleware(next http.Handler) http.Handler {
 
 			email, ok := claims["email"].(string)
 			if !ok {
+				app.logger.Warnf("Auth failed: invalid email in token, path=%s, IP=%s", r.URL.Path, clientIP)
 				app.respondWithError(w, http.StatusUnauthorized, "invalid email in token")
 				return
 			}
+
+			app.logger.Debugf("Auth successful: user_id=%d, email=%s, path=%s, IP=%s", userID, email, r.URL.Path, clientIP)
 
 			ctx := context.WithValue(r.Context(), userIDKey, userID)
 			ctx = context.WithValue(ctx, emailKey, email)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		} else {
+			app.logger.Warnf("Auth failed: invalid token claims, path=%s, IP=%s", r.URL.Path, clientIP)
 			app.respondWithError(w, http.StatusUnauthorized, "invalid token claims")
 		}
 	})
