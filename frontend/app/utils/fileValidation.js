@@ -10,9 +10,9 @@ function getFileExtension(filename) {
 }
 
 export function formatFileSize(bytes) {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return '0 Б';
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ['Б', 'КБ', 'МБ', 'ГБ'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }

@@ -44,7 +44,7 @@ class FileProcessingService:
                 raise ValueError(f"Ошибка обработки файла {file.filename}: {e!s}") from e
 
         processed_files = await asyncio.gather(*[process_single_file(file) for file in files])
-        return list[ProcessedFile](processed_files)
+        return list(processed_files)
 
     @staticmethod
     def format_files_for_prompt(processed_files: list[ProcessedFile]) -> str:

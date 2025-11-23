@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import { ScrollArea } from '../ui/scroll-area';
 import { MessageSquare, Trash } from './icons';
 import styles from './SessionList.module.css';
 
-export function SessionList({ sessions, activeSessionId, onSelectSession, onDeleteSession }) {
+export const SessionList = memo(function SessionList({ sessions, activeSessionId, onSelectSession, onDeleteSession }) {
   if (!sessions.length) {
     return (
       <div className={styles.emptyState}>
@@ -57,5 +58,4 @@ export function SessionList({ sessions, activeSessionId, onSelectSession, onDele
       </div>
     </ScrollArea>
   );
-}
-
+});

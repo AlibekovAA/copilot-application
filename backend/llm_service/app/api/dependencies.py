@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import get_db
 from app.repositories import ConversationRepository, MessageRepository
-from app.services import MistralService
+from app.services import ConversationService, MistralService
 
 
 def get_conversation_repo(
@@ -20,10 +20,17 @@ def get_message_repo(
     return MessageRepository(db)
 
 
+def get_conversation_service(
+    conversation_repo: ConversationRepository = Depends(get_conversation_repo),
+) -> ConversationService:
+    return ConversationService(conversation_repo)
+
+
 def get_mistral_service(request: Request) -> MistralService:
     return cast(MistralService, request.app.state.mistral_service)
 
 
 ConversationRepoDep = Annotated[ConversationRepository, Depends(get_conversation_repo)]
 MessageRepoDep = Annotated[MessageRepository, Depends(get_message_repo)]
+ConversationServiceDep = Annotated[ConversationService, Depends(get_conversation_service)]
 MistralServiceDep = Annotated[MistralService, Depends(get_mistral_service)]

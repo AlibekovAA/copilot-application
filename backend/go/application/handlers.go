@@ -1,7 +1,6 @@
 package application
 
 import (
-	"backend/database"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +11,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+
+	"backend/database"
 )
 
 type RegisterRequest struct {
@@ -41,11 +42,16 @@ const (
 	emailKey  contextKey = "email"
 )
 
-func (app *Application) healthHandler(w http.ResponseWriter, r *http.Request) {
+func getClientIP(r *http.Request) string {
 	clientIP := r.RemoteAddr
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		clientIP = forwarded
 	}
+	return clientIP
+}
+
+func (app *Application) healthHandler(w http.ResponseWriter, r *http.Request) {
+	clientIP := getClientIP(r)
 	app.logger.Debugf("Health check: IP=%s", clientIP)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
@@ -56,10 +62,7 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-
 func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
+	clientIP := getClientIP(r)
 
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -116,17 +119,10 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		Name:           req.Name,
 		HashedPassword: string(hashedPassword),
 	}
-	err = app.userRepo.Create(ctx, user)
+	createdUser, err := app.userRepo.Create(ctx, user)
 
 	if err != nil {
 		app.logger.Errorf("Registration DB error: %v", err)
-		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
-		return
-	}
-
-	createdUser, err := app.userRepo.GetByEmail(ctx, req.Email)
-	if err != nil {
-		app.logger.Errorf("Failed to fetch created user: %v", err)
 		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
 		return
 	}
@@ -153,10 +149,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
+	clientIP := getClientIP(r)
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -209,10 +202,7 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
+	clientIP := getClientIP(r)
 
 	userID, ok1 := r.Context().Value(userIDKey).(int64)
 	email, ok2 := r.Context().Value(emailKey).(string)
@@ -233,10 +223,7 @@ func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
 func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1024*1024)
 
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
+	clientIP := getClientIP(r)
 
 	userID, ok := r.Context().Value(userIDKey).(int64)
 	email, ok2 := r.Context().Value(emailKey).(string)
@@ -307,10 +294,7 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 
 func (app *Application) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := r.RemoteAddr
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			clientIP = forwarded
-		}
+		clientIP := getClientIP(r)
 
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -368,7 +352,7 @@ func (app *Application) respondWithError(w http.ResponseWriter, code int, messag
 func (app *Application) respondWithJSON(w http.ResponseWriter, code int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-		if err := json.NewEncoder(w).Encode(payload); err != nil {
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		app.logger.Errorf("Failed to encode JSON response: %v", err)
 	}
 }

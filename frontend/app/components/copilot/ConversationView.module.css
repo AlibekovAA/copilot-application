@@ -14,11 +14,23 @@
   border: 1px solid var(--app-card-border);
   background: var(--app-card-bg);
   backdrop-filter: blur(12px);
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.3s ease;
   width: fit-content;
   max-width: 90%;
   box-sizing: border-box;
   overflow: hidden;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .cardUser {
@@ -94,6 +106,7 @@
   height: 1rem;
   background: var(--app-accent-color);
   margin-left: 0.4rem;
+  vertical-align: middle;
   animation: pulse 0.8s ease-in-out infinite;
 }
 
@@ -201,6 +214,19 @@
 .copyButtonCopied {
   color: #34d399;
   background: rgba(52, 211, 153, 0.12);
+  animation: copySuccess 0.3s ease-out;
+}
+
+@keyframes copySuccess {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @keyframes pulse {

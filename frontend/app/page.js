@@ -7,7 +7,7 @@ import { QuestionPanel } from './components/copilot/QuestionPanel';
 import { ConversationView } from './components/copilot/ConversationView';
 import { SessionList } from './components/copilot/SessionList';
 import { BackgroundBlobs } from './components/ui/BackgroundBlobs';
-import { LoadingScreen } from './components/ui/LoadingScreen';
+import { FullScreenLoading } from './components/ui/full-screen-loading';
 import {
   createSession,
   createUserMessage,
@@ -16,15 +16,15 @@ import {
 } from './utils/messageHelpers';
 import { getDomainFromTopic } from './constants/topics';
 import { ScrollArea } from './components/ui/scroll-area';
-import { Plus, Eye, EyeOff, X } from './components/copilot/icons';
+import { Plus, X } from './components/copilot/icons';
 import { Logo } from './components/auth/Logo';
 import { Toggle } from './components/ui/toggle';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
-import { Input } from './components/ui/input';
-import { Label } from './components/ui/label';
+import { PasswordInput } from './components/ui/password-input';
 import { Button } from './components/ui/button';
 import { changePassword as apiChangePassword } from './utils/authApi';
-import { API_URL, getAuthHeaders } from './utils/apiHelpers';
+import { API_URL, getAuthHeaders, handleApiError } from './utils/apiHelpers';
+import { loadMessagesForConversation } from './utils/conversationApi';
 import { useToast } from './components/ui/toast';
 import { formatErrorDetail } from './utils/errorHelpers';
 import styles from './page.module.css';
@@ -50,9 +50,6 @@ export default function Home() {
     confirmPassword: '',
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const activeSessionIdRef = useRef(activeSessionId);
   const headerMenuRef = useRef(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -97,10 +94,10 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          formatErrorDetail(errorData.detail) ||
-          'Не удалось загрузить список диалогов';
+        const errorMessage = await handleApiError(
+          response,
+          'Не удалось загрузить список диалогов',
+        );
         toast.error(errorMessage);
         console.error(
           '[History] Failed to load conversations, status:',
@@ -127,39 +124,25 @@ export default function Home() {
         const firstConversation = loadedSessions[0];
         if (firstConversation.conversationId) {
           try {
-            const messagesResponse = await fetch(
-              `${API_URL}/conversations/${firstConversation.conversationId}/messages`,
-              {
-                headers: getAuthHeaders(),
-              },
+            const messages = await loadMessagesForConversation(
+              firstConversation.conversationId,
             );
-
-            if (messagesResponse.ok) {
-              const messagesData = await messagesResponse.json();
-
-              setSessions((prevSessions) => {
-                const updated = [...prevSessions];
-                if (updated[0]) {
-                  updated[0] = {
-                    ...updated[0],
-                    messages: messagesData.messages || [],
-                  };
-                }
-                return updated;
-              });
-            } else {
-              const errorData = await messagesResponse.json().catch(() => ({}));
-              const errorMessage =
-                formatErrorDetail(errorData.detail) ||
-                'Не удалось загрузить сообщения';
-              toast.error(errorMessage);
-            }
+            setSessions((prevSessions) => {
+              const updated = [...prevSessions];
+              if (updated[0]) {
+                updated[0] = {
+                  ...updated[0],
+                  messages,
+                };
+              }
+              return updated;
+            });
           } catch (error) {
             console.error(
               '[History] Error loading messages for first conversation:',
               error,
             );
-            toast.error('Ошибка при загрузке сообщений');
+            toast.error(error.message || 'Ошибка при загрузке сообщений');
           }
         }
       }
@@ -196,69 +179,54 @@ export default function Home() {
     });
   }, []);
 
-  const handleSubmitQuestion = async (
-    question,
-    files = [],
-    selectedTopic = null,
-  ) => {
-    if (!question.trim() && files.length === 0) {
-      return;
-    }
-
-    const sessionId = activeSessionId;
-    const userMessage = createUserMessage(question, files);
-
-    updateSession(sessionId, (session) => ({
-      ...session,
-      messages: [...session.messages, userMessage],
-      title:
-        session.messages.length === 0
-          ? getSessionTitle(question, files)
-          : session.title,
-      updatedAt: userMessage.timestamp,
-    }));
-
-    setIsLoadingAnswer(true);
-    setTypingState({ messageId: null, fullText: '' });
-
-    try {
-      let answer;
+  const ensureConversationId = useCallback(
+    async (sessionId, question, files, selectedTopic) => {
+      const currentSession = sessions.find((s) => s.id === sessionId);
+      if (currentSession?.conversationId) {
+        return currentSession.conversationId;
+      }
 
       const domain = selectedTopic
         ? getDomainFromTopic(selectedTopic)
         : 'general';
-      const cleanedQuestion = question.trim();
+      const conversationTitle = getSessionTitle(question, files);
 
-      const currentSession = sessions.find((s) => s.id === sessionId);
-      let conversationId = currentSession?.conversationId;
+      const createResponse = await fetch(`${API_URL}/conversations`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          title: conversationTitle,
+          business_context: domain,
+        }),
+      });
 
-      if (!conversationId) {
-        const conversationTitle = getSessionTitle(question, files);
-
-        const createResponse = await fetch(`${API_URL}/conversations`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            title: conversationTitle,
-            business_context: domain,
-          }),
-        });
-
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json().catch(() => ({}));
-          const errorMessage =
-            formatErrorDetail(errorData.detail) || 'Не удалось создать диалог';
-          throw new Error(errorMessage);
-        }
-
-        const createData = await createResponse.json();
-        conversationId = createData.conversation_id;
-
-        updateSession(sessionId, (session) => ({
-          ...session,
-          conversationId: conversationId,
-        }));
+      if (!createResponse.ok) {
+        const errorMessage = await handleApiError(
+          createResponse,
+          'Не удалось создать диалог',
+        );
+        throw new Error(errorMessage);
       }
+
+      const createData = await createResponse.json();
+      const conversationId = createData.conversation_id;
+
+      updateSession(sessionId, (session) => ({
+        ...session,
+        conversationId,
+      }));
+
+      return conversationId;
+    },
+    [sessions, updateSession],
+  );
+
+  const sendChatMessage = useCallback(
+    async (conversationId, question, files, selectedTopic) => {
+      const domain = selectedTopic
+        ? getDomainFromTopic(selectedTopic)
+        : 'general';
+      const cleanedQuestion = question.trim();
 
       const formData = new FormData();
       formData.append('conversation_id', conversationId.toString());
@@ -271,85 +239,110 @@ export default function Home() {
         });
       }
 
-      const authHeaders = getAuthHeaders();
-      const headers = {
-        Authorization: authHeaders.Authorization,
-      };
-
       const response = await fetch(`${API_URL}/chat`, {
         method: 'POST',
-        headers: headers,
+        headers: {
+          Authorization: getAuthHeaders().Authorization,
+        },
         body: formData,
       });
 
-      if (response.status === 429) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          formatErrorDetail(errorData.detail) ||
-            'Превышен лимит запросов к языковой модели. Попробуйте позже.',
-        );
-      }
-
-      if (response.status === 422) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          formatErrorDetail(errorData.detail) ||
-            'Некорректные данные запроса. Проверьте сообщение и попробуйте снова.',
-        );
-      }
+      const statusMessages = {
+        429: 'Превышен лимит запросов к языковой модели. Попробуйте позже.',
+        422: 'Некорректные данные запроса. Проверьте сообщение и попробуйте снова.',
+      };
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          formatErrorDetail(errorData.detail) ||
-            `HTTP error! status: ${response.status}`,
-        );
+        const fallbackMessage =
+          statusMessages[response.status] ||
+          `Ошибка HTTP! Статус: ${response.status}`;
+        const errorMessage = await handleApiError(response, fallbackMessage);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      answer = data.response || 'Не удалось получить ответ';
+      return data.response || 'Не удалось получить ответ';
+    },
+    [],
+  );
 
-      const assistantMessage = createAssistantMessage(answer);
-
+  const addMessageToSession = useCallback(
+    (sessionId, message, isError = false) => {
       updateSession(sessionId, (session) => ({
         ...session,
-        messages: [...session.messages, assistantMessage],
-        updatedAt: assistantMessage.timestamp,
-      }));
-
-      if (activeSessionIdRef.current === sessionId) {
-        setTypingState({ messageId: assistantMessage.id, fullText: answer });
-      }
-    } catch (error) {
-      console.error('Error generating answer:', error);
-      const mistralLimitMessage =
-        'Request limit exceeded for the configured Mistral model. Please retry later.';
-
-      const errorMessage =
-        error?.message === mistralLimitMessage
-          ? 'Достигнут лимит запросов к модели. Подождите и попробуйте снова.'
-          : error?.message ||
-            'Произошла ошибка при получении ответа. Попробуйте еще раз.';
-
-      toast.error(errorMessage);
-      const assistantMessage = createAssistantMessage(errorMessage);
-
-      updateSession(sessionId, (session) => ({
-        ...session,
-        messages: [...session.messages, assistantMessage],
-        updatedAt: assistantMessage.timestamp,
+        messages: [...session.messages, message],
+        updatedAt: message.timestamp,
       }));
 
       if (activeSessionIdRef.current === sessionId) {
         setTypingState({
-          messageId: assistantMessage.id,
-          fullText: errorMessage,
+          messageId: message.id,
+          fullText: message.content,
         });
       }
-    } finally {
-      setIsLoadingAnswer(false);
-    }
-  };
+    },
+    [updateSession],
+  );
+
+  const handleSubmitQuestion = useCallback(
+    async (question, files = [], selectedTopic = null) => {
+      if (!question.trim() && files.length === 0) {
+        return;
+      }
+
+      const sessionId = activeSessionId;
+      const userMessage = createUserMessage(question, files);
+
+      updateSession(sessionId, (session) => ({
+        ...session,
+        messages: [...session.messages, userMessage],
+        title:
+          session.messages.length === 0
+            ? getSessionTitle(question, files)
+            : session.title,
+        updatedAt: userMessage.timestamp,
+      }));
+
+      setIsLoadingAnswer(true);
+      setTypingState({ messageId: null, fullText: '' });
+
+      try {
+        const conversationId = await ensureConversationId(
+          sessionId,
+          question,
+          files,
+          selectedTopic,
+        );
+        const answer = await sendChatMessage(
+          conversationId,
+          question,
+          files,
+          selectedTopic,
+        );
+        const assistantMessage = createAssistantMessage(answer);
+        addMessageToSession(sessionId, assistantMessage);
+      } catch (error) {
+        console.error('Error generating answer:', error);
+        const errorMessage =
+          formatErrorDetail(error?.message) ||
+          'Произошла ошибка при получении ответа. Попробуйте еще раз.';
+
+        toast.error(errorMessage);
+        const assistantMessage = createAssistantMessage(errorMessage);
+        addMessageToSession(sessionId, assistantMessage);
+      } finally {
+        setIsLoadingAnswer(false);
+      }
+    },
+    [
+      activeSessionId,
+      updateSession,
+      ensureConversationId,
+      sendChatMessage,
+      addMessageToSession,
+      toast,
+    ],
+  );
 
   const handleTypingComplete = () => {
     setTypingState({ messageId: null, fullText: '' });
@@ -371,31 +364,16 @@ export default function Home() {
 
     if (session && session.conversationId && session.messages.length === 0) {
       try {
-        const response = await fetch(
-          `${API_URL}/conversations/${session.conversationId}/messages`,
-          {
-            headers: getAuthHeaders(),
-          },
+        const messages = await loadMessagesForConversation(
+          session.conversationId,
         );
-
-        if (response.ok) {
-          const data = await response.json();
-
-          updateSession(sessionId, (s) => ({
-            ...s,
-            messages: data.messages || [],
-          }));
-        } else {
-          const errorData = await response.json().catch(() => ({}));
-          const errorMessage =
-            formatErrorDetail(errorData.detail) ||
-            'Не удалось загрузить сообщения';
-          toast.error(errorMessage);
-          console.error('[Messages] Failed to load, status:', response.status);
-        }
+        updateSession(sessionId, (s) => ({
+          ...s,
+          messages,
+        }));
       } catch (error) {
         console.error('[Messages] Error loading messages:', error);
-        toast.error('Ошибка при загрузке сообщений');
+        toast.error(error.message || 'Ошибка при загрузке сообщений');
       }
     }
   };
@@ -403,34 +381,7 @@ export default function Home() {
   const handleDeleteSession = useCallback(
     async (sessionId) => {
       const session = sessions.find((s) => s.id === sessionId);
-
-      if (session?.conversationId) {
-        try {
-          const response = await fetch(
-            `${API_URL}/conversations/${session.conversationId}`,
-            {
-              method: 'DELETE',
-              headers: getAuthHeaders(),
-            },
-          );
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMessage =
-              formatErrorDetail(errorData.detail) || 'Не удалось удалить чат';
-            toast.error(errorMessage);
-            console.error(
-              '[Delete] Failed to delete conversation:',
-              response.status,
-            );
-            return;
-          }
-        } catch (error) {
-          console.error('[Delete] Error deleting conversation:', error);
-          toast.error('Ошибка при удалении чата');
-          return;
-        }
-      }
+      const sessionTitle = session?.title || 'Диалог';
 
       setSessions((prevSessions) => {
         if (prevSessions.length === 0) {
@@ -460,6 +411,57 @@ export default function Home() {
 
         return remainingSessions;
       });
+
+      if (session?.conversationId) {
+        try {
+          const response = await fetch(
+            `${API_URL}/conversations/${session.conversationId}`,
+            {
+              method: 'DELETE',
+              headers: getAuthHeaders(),
+            },
+          );
+
+          if (!response.ok) {
+            const errorMessage = await handleApiError(
+              response,
+              'Не удалось удалить чат',
+            );
+            toast.error(errorMessage);
+            setSessions((prevSessions) => {
+              const restored = [...prevSessions];
+              const sessionIndex = restored.findIndex(
+                (s) => s.id === sessionId,
+              );
+              if (sessionIndex === -1) {
+                restored.push(session);
+              }
+              return restored.sort(
+                (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+              );
+            });
+            console.error(
+              '[Delete] Failed to delete conversation:',
+              response.status,
+            );
+            return;
+          }
+        } catch (error) {
+          console.error('[Delete] Error deleting conversation:', error);
+          toast.error('Ошибка при удалении чата');
+          setSessions((prevSessions) => {
+            const restored = [...prevSessions];
+            const sessionIndex = restored.findIndex((s) => s.id === sessionId);
+            if (sessionIndex === -1) {
+              restored.push(session);
+            }
+            return restored.sort(
+              (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+            );
+          });
+          return;
+        }
+      }
     },
     [sessions, toast],
   );
@@ -526,7 +528,7 @@ export default function Home() {
       });
       toast.success('Пароль успешно изменен');
     } catch (error) {
-      toast.error(error.message || 'Ошибка смены пароля');
+      toast.error(formatErrorDetail(error?.message) || 'Ошибка смены пароля');
     } finally {
       setIsChangingPassword(false);
     }
@@ -550,21 +552,7 @@ export default function Home() {
   );
 
   if (isLoading || !isAuthenticated || isRedirecting) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 9999,
-          backgroundColor: '#0f0f0f',
-        }}
-      >
-        <LoadingScreen />
-      </div>
-    );
+    return <FullScreenLoading />;
   }
 
   return (
@@ -720,99 +708,75 @@ export default function Home() {
                 }}
                 noValidate
               >
-                <div className={styles.passwordFormField}>
-                  <Label htmlFor="old-password">Текущий пароль</Label>
-                  <div className={styles.passwordInputWrapper}>
-                    <Input
-                      id="old-password"
-                      type={showOldPassword ? 'text' : 'password'}
-                      value={changePasswordData.oldPassword}
-                      onChange={(e) =>
-                        setChangePasswordData((prev) => ({
-                          ...prev,
-                          oldPassword: e.target.value,
-                        }))
-                      }
-                      required
-                      className={styles.passwordInput}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOldPassword(!showOldPassword)}
-                      className={styles.passwordToggleButton}
-                    >
-                      {showOldPassword ? (
-                        <EyeOff className={styles.passwordToggleIcon} />
-                      ) : (
-                        <Eye className={styles.passwordToggleIcon} />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                <PasswordInput
+                  id="old-password"
+                  label="Текущий пароль"
+                  value={changePasswordData.oldPassword}
+                  onChange={(e) =>
+                    setChangePasswordData((prev) => ({
+                      ...prev,
+                      oldPassword: e.target.value,
+                    }))
+                  }
+                  required
+                  className={styles.passwordInput}
+                />
 
-                <div className={styles.passwordFormField}>
-                  <Label htmlFor="new-password">Новый пароль</Label>
-                  <div className={styles.passwordInputWrapper}>
-                    <Input
-                      id="new-password"
-                      type={showNewPassword ? 'text' : 'password'}
-                      value={changePasswordData.newPassword}
-                      onChange={(e) =>
-                        setChangePasswordData((prev) => ({
-                          ...prev,
-                          newPassword: e.target.value,
-                        }))
-                      }
-                      required
-                      className={styles.passwordInput}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className={styles.passwordToggleButton}
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className={styles.passwordToggleIcon} />
-                      ) : (
-                        <Eye className={styles.passwordToggleIcon} />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                <PasswordInput
+                  id="new-password"
+                  label="Новый пароль"
+                  value={changePasswordData.newPassword}
+                  onChange={(e) =>
+                    setChangePasswordData((prev) => ({
+                      ...prev,
+                      newPassword: e.target.value,
+                    }))
+                  }
+                  required
+                  className={styles.passwordInput}
+                  showValidation={changePasswordData.newPassword.length > 0}
+                  isValid={
+                    changePasswordData.newPassword.length >= 8
+                      ? true
+                      : changePasswordData.newPassword.length > 0
+                      ? false
+                      : null
+                  }
+                  errorMessage={
+                    changePasswordData.newPassword.length > 0 &&
+                    changePasswordData.newPassword.length < 8
+                      ? 'Пароль должен содержать минимум 8 символов'
+                      : ''
+                  }
+                />
 
-                <div className={styles.passwordFormField}>
-                  <Label htmlFor="confirm-password">
-                    Подтвердите новый пароль
-                  </Label>
-                  <div className={styles.passwordInputWrapper}>
-                    <Input
-                      id="confirm-password"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={changePasswordData.confirmPassword}
-                      onChange={(e) =>
-                        setChangePasswordData((prev) => ({
-                          ...prev,
-                          confirmPassword: e.target.value,
-                        }))
-                      }
-                      required
-                      className={styles.passwordInput}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className={styles.passwordToggleButton}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className={styles.passwordToggleIcon} />
-                      ) : (
-                        <Eye className={styles.passwordToggleIcon} />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                <PasswordInput
+                  id="confirm-password"
+                  label="Подтвердите новый пароль"
+                  value={changePasswordData.confirmPassword}
+                  onChange={(e) =>
+                    setChangePasswordData((prev) => ({
+                      ...prev,
+                      confirmPassword: e.target.value,
+                    }))
+                  }
+                  required
+                  className={styles.passwordInput}
+                  showValidation={changePasswordData.confirmPassword.length > 0}
+                  isValid={
+                    changePasswordData.confirmPassword.length > 0
+                      ? changePasswordData.newPassword ===
+                        changePasswordData.confirmPassword
+                      : null
+                  }
+                  errorMessage={
+                    changePasswordData.confirmPassword.length > 0 &&
+                    changePasswordData.newPassword !==
+                      changePasswordData.confirmPassword
+                      ? 'Пароли не совпадают'
+                      : ''
+                  }
+                />
 
                 <div className={styles.passwordFormActions}>
                   <Button

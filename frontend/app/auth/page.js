@@ -3,10 +3,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, Suspense, useState } from 'react';
 import { AuthForm } from '../components/auth/AuthForm';
 import { BackgroundBlobs } from '../components/ui/BackgroundBlobs';
-import { LoadingScreen } from '../components/ui/LoadingScreen';
+import { FullScreenLoading } from '../components/ui/full-screen-loading';
 import { useAuth } from '../context/AuthContext';
 import { login as apiLogin, register as apiRegister } from '../utils/authApi';
 import { useToast } from '../components/ui/toast';
+import { formatErrorDetail } from '../utils/errorHelpers';
 import styles from './page.module.css';
 
 function AuthPageContent() {
@@ -24,21 +25,7 @@ function AuthPageContent() {
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading || isAuthenticated) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 9999,
-          backgroundColor: '#0f0f0f',
-        }}
-      >
-        <LoadingScreen />
-      </div>
-    );
+    return <FullScreenLoading />;
   }
 
   const setAction = (next) => {
@@ -52,7 +39,7 @@ function AuthPageContent() {
       const { token, user } = await apiLogin(data.email, data.password);
       login(token, user);
     } catch (error) {
-      toast.error(error.message || 'Ошибка входа');
+      toast.error(formatErrorDetail(error?.message) || 'Ошибка входа');
     } finally {
       setIsSubmitting(false);
     }
@@ -65,7 +52,7 @@ function AuthPageContent() {
       toast.success('Регистрация успешна! Теперь войдите в систему');
       setAction('login');
     } catch (error) {
-      toast.error(error.message || 'Ошибка регистрации');
+      toast.error(formatErrorDetail(error?.message) || 'Ошибка регистрации');
     } finally {
       setIsSubmitting(false);
     }
@@ -98,23 +85,7 @@ function AuthPageContent() {
 
 export default function AuthPage() {
   return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 9999,
-            backgroundColor: '#0f0f0f',
-          }}
-        >
-          <LoadingScreen />
-        </div>
-      }
-    >
+    <Suspense fallback={<FullScreenLoading />}>
       <AuthPageContent />
     </Suspense>
   );

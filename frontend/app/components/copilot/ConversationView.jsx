@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Card } from '../ui/card';
 import { Copy, Check, Paperclip } from './icons';
 import { cn } from '../ui/utils';
-import { TYPING_INTERVAL_MS } from '../../utils/apiHelpers';
+import { getTypingChunk, getTypingInterval } from '../../utils/typingHelpers';
 import { formatFileSize } from '../../utils/fileValidation';
 import { useToast } from '../ui/toast';
 import { Markdown } from '../ui/markdown';
@@ -21,7 +21,12 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
   const toast = useToast();
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (bottomRef.current) {
+      const timeoutId = setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
   }, [messages.length, animatedText, typingState.messageId]);
 
   useEffect(() => {
@@ -60,15 +65,17 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
 
     setAnimatedText(typingState.fullText.slice(0, startIndex));
 
+    const interval = getTypingInterval(typingState.fullText);
     typingIntervalRef.current = window.setInterval(() => {
-      currentIndexRef.current += 1;
+      const chunk = getTypingChunk(typingState.fullText, currentIndexRef.current);
+      currentIndexRef.current += chunk;
       setAnimatedText(typingState.fullText.slice(0, currentIndexRef.current));
       if (currentIndexRef.current >= typingState.fullText.length) {
         window.clearInterval(typingIntervalRef.current);
         typingIntervalRef.current = null;
         onTypingComplete();
       }
-    }, TYPING_INTERVAL_MS);
+    }, interval);
 
     return () => {
       if (typingIntervalRef.current) {
@@ -132,7 +139,7 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
     !messages.some(m => m.role === 'assistant' && m.id === typingState.messageId);
 
   return (
-    <div className={styles.conversationList}>
+    <div className={styles.conversationList} aria-live="polite" aria-atomic="false">
       {messages.map(message => {
         const content = getMessageContent(message);
         const isAssistant = message.role === 'assistant';
@@ -167,16 +174,11 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
               )}
 
               <div className={styles.messageTextWrapper}>
-                {showTypingIndicator ? (
-                  <p className={styles.messageText}>
+                <div className={styles.messageText}>
+                  <Markdown showTypingIndicator={showTypingIndicator}>
                     {content}
-                    <span className={styles.typingCaret} />
-                  </p>
-                ) : (
-                  <div className={styles.messageText}>
-                    <Markdown>{content}</Markdown>
-                  </div>
-                )}
+                  </Markdown>
+                </div>
                 {!showTypingIndicator && content && (
                   <button
                     type="button"

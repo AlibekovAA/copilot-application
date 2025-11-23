@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
       })
         .then((response) => {
           if (!response.ok) {
-            throw new Error('Invalid token');
+            throw new Error('Неверный токен');
           }
           return response.json();
         })

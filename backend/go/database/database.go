@@ -1,8 +1,6 @@
 package database
 
 import (
-	"backend/config"
-	"backend/logger"
 	"context"
 	"database/sql"
 	"errors"
@@ -10,6 +8,9 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+
+	"backend/config"
+	"backend/logger"
 )
 
 const (
@@ -110,11 +111,11 @@ func (r *UserRepository) UpdatePassword(ctx context.Context, user User) error {
 	return nil
 }
 
-func (r *UserRepository) Create(ctx context.Context, user User) error {
+func (r *UserRepository) Create(ctx context.Context, user User) (User, error) {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		r.logger.Errorf("Failed to begin transaction for user creation: %v", err)
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return user, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	var originalErr error
@@ -133,15 +134,15 @@ func (r *UserRepository) Create(ctx context.Context, user User) error {
 	if err != nil {
 		originalErr = err
 		r.logger.Errorf("Failed to create user with email %s: %v", user.Email, err)
-		return fmt.Errorf("failed to create user: %w", err)
+		return user, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
 		originalErr = err
 		r.logger.Errorf("Failed to commit transaction for user creation: %v", err)
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return user, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	r.logger.Infof("User created successfully with id %d and email %s", user.ID, user.Email)
-	return nil
+	return user, nil
 }

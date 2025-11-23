@@ -2,11 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ConversationRepoDep, MessageRepoDep
+from app.api.dependencies import ConversationRepoDep, ConversationServiceDep, MessageRepoDep
 from app.core import get_db
 from app.middleware import get_current_user_id
 from app.schemas import ConversationCreate, ConversationListResponse, ConversationResponse
-from app.services import ConversationService
 from app.utils import handle_api_error, log
 
 
@@ -99,7 +98,7 @@ async def get_conversations(
 @router.get("/conversations/{conversation_id}/messages", status_code=status.HTTP_200_OK)
 async def get_conversation_messages(
     conversation_id: int,
-    conversation_repo: ConversationRepoDep,
+    conversation_service: ConversationServiceDep,
     message_repo: MessageRepoDep,
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
@@ -107,7 +106,6 @@ async def get_conversation_messages(
     log.debug(f"Fetching messages for conversation {conversation_id}, user {user_id}")
 
     try:
-        conversation_service = ConversationService(conversation_repo)
         await conversation_service.validate_conversation_access(conversation_id, user_id)
 
         messages = await message_repo.get_all_messages(conversation_id)
