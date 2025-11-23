@@ -7,6 +7,7 @@ import { Label } from '../ui/label';
 import { Logo } from './Logo';
 import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff, CheckCircle2, Send } from '../copilot/icons';
 import { useToast } from '../ui/toast';
+import { validateEmail, validateName, validatePassword, validatePasswordMatch } from '../../utils/validation';
 import styles from './auth.module.css';
 
 export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onForgotPassword, isLoading }) {
@@ -25,62 +26,51 @@ export function AuthForm({ mode = 'welcome', onBack, onSwitchMode, onSubmit, onF
 	const handleSubmit = (e) => {
 		e.preventDefault();
 		if (mode === 'signup') {
-			if (!formData.name || formData.name.trim().length === 0) {
-				toast.error('Имя обязательно для заполнения');
-				return;
-			}
-			if (formData.name.trim().length < 2) {
-				toast.error('Имя должно содержать минимум 2 символа');
+			const nameValidation = validateName(formData.name);
+			if (!nameValidation.valid) {
+				toast.error(nameValidation.error);
 				return;
 			}
 
-			if (!formData.email || formData.email.trim().length === 0) {
-				toast.error('Email обязателен для заполнения');
-				return;
-			}
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(formData.email)) {
-				toast.error('Введите корректный email адрес');
+			const emailValidation = validateEmail(formData.email);
+			if (!emailValidation.valid) {
+				toast.error(emailValidation.error);
 				return;
 			}
 
-			if (!formData.password || formData.password.length === 0) {
-				toast.error('Пароль обязателен для заполнения');
-				return;
-			}
-			if (formData.password.length < 8) {
-				toast.error('Пароль должен содержать минимум 8 символов');
+			const passwordValidation = validatePassword(formData.password);
+			if (!passwordValidation.valid) {
+				toast.error(passwordValidation.error);
 				return;
 			}
 
-			if (!formData.confirmPassword || formData.confirmPassword.length === 0) {
-				toast.error('Подтвердите пароль');
-				return;
-			}
-			if (formData.password !== formData.confirmPassword) {
-				toast.error('Пароли не совпадают');
+			const passwordMatchValidation = validatePasswordMatch(
+				formData.password,
+				formData.confirmPassword,
+			);
+			if (!passwordMatchValidation.valid) {
+				toast.error(passwordMatchValidation.error);
 				return;
 			}
 		}
 
 		if (mode === 'login') {
-			if (!formData.email || formData.email.trim().length === 0) {
-				toast.error('Email обязателен для заполнения');
+			const emailValidation = validateEmail(formData.email);
+			if (!emailValidation.valid) {
+				toast.error(emailValidation.error);
 				return;
 			}
-			if (!formData.password || formData.password.length === 0) {
-				toast.error('Пароль обязателен для заполнения');
+
+			const passwordValidation = validatePassword(formData.password);
+			if (!passwordValidation.valid) {
+				toast.error(passwordValidation.error);
 				return;
 			}
 		}
 		if (mode === 'forgot-password') {
-			if (!forgotPasswordEmail || forgotPasswordEmail.trim().length === 0) {
-				toast.error('Email обязателен для заполнения');
-				return;
-			}
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(forgotPasswordEmail)) {
-				toast.error('Введите корректный email адрес');
+			const emailValidation = validateEmail(forgotPasswordEmail);
+			if (!emailValidation.valid) {
+				toast.error(emailValidation.error);
 				return;
 			}
 			if (onForgotPassword) {

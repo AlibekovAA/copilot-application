@@ -1,6 +1,19 @@
 import { AUTH_API_URL, getAuthToken } from './apiHelpers';
 import { formatErrorDetail } from './errorHelpers';
 
+async function handleAuthResponse(response, fallbackError) {
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({ error: fallbackError }));
+    const errorMessage = formatErrorDetail(
+      errorData.detail || errorData.error || errorData,
+    );
+    throw new Error(errorMessage || fallbackError);
+  }
+  return await response.json();
+}
+
 export async function login(email, password) {
   const response = await fetch(`${AUTH_API_URL}/login`, {
     method: 'POST',
@@ -10,17 +23,7 @@ export async function login(email, password) {
     body: JSON.stringify({ email, password }),
   });
 
-  if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ error: 'Ошибка входа' }));
-    const errorMessage = formatErrorDetail(
-      errorData.detail || errorData.error || errorData,
-    );
-    throw new Error(errorMessage || 'Ошибка входа');
-  }
-
-  const data = await response.json();
+  const data = await handleAuthResponse(response, 'Ошибка входа');
   return {
     token: data.token,
     user: data.user,
@@ -36,17 +39,7 @@ export async function register(name, email, password) {
     body: JSON.stringify({ name, email, password }),
   });
 
-  if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ error: 'Ошибка регистрации' }));
-    const errorMessage = formatErrorDetail(
-      errorData.detail || errorData.error || errorData,
-    );
-    throw new Error(errorMessage || 'Ошибка регистрации');
-  }
-
-  const data = await response.json();
+  const data = await handleAuthResponse(response, 'Ошибка регистрации');
   return {
     token: data.token,
     user: data.user,
@@ -71,15 +64,5 @@ export async function changePassword(oldPassword, newPassword) {
     }),
   });
 
-  if (!response.ok) {
-    const errorData = await response
-      .json()
-      .catch(() => ({ error: 'Ошибка смены пароля' }));
-    const errorMessage = formatErrorDetail(
-      errorData.detail || errorData.error || errorData,
-    );
-    throw new Error(errorMessage || 'Ошибка смены пароля');
-  }
-
-  return await response.json();
+  return await handleAuthResponse(response, 'Ошибка смены пароля');
 }

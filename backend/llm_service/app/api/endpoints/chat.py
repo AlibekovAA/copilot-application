@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import ConversationRepoDep, MessageRepoDep, MistralServiceDep
+from app.api.dependencies import ConversationServiceDep, MessageRepoDep, MistralServiceDep
 from app.core import get_db
 from app.middleware import get_current_user_id
 from app.prompts import get_system_prompt
 from app.schemas import ChatResponse
-from app.services import ConversationService, FileProcessingService, MistralService
+from app.services import FileProcessingService, MistralService
 from app.utils import handle_api_error, log
 
 
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse, status_code=status.HTTP_200_OK)
 async def chat_endpoint(  # noqa: PLR0913, PLR0917
-    conversation_repo: ConversationRepoDep,
+    conversation_service: ConversationServiceDep,
     message_repo: MessageRepoDep,
     mistral_service: MistralServiceDep,
     db: AsyncSession = Depends(get_db),
@@ -34,7 +34,6 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
     )
 
     try:
-        conversation_service = ConversationService(conversation_repo)
         actual_conversation_id = await conversation_service.validate_conversation_access(conversation_id, user_id)
 
         processed_files = []
@@ -51,8 +50,9 @@ async def chat_endpoint(  # noqa: PLR0913, PLR0917
             files_content = FileProcessingService.format_files_for_prompt(processed_files)
             full_message = f"{message}\n\n{files_content}"
 
-        enriched_prompt = f"{system_prompt}\n\n{full_message}" if is_first_message else None
+        enriched_prompt = None
         if is_first_message:
+            enriched_prompt = f"{system_prompt}\n\n{full_message}"
             log.info(f"First message - enriched with system prompt for domain: {domain}")
 
         response_text = await _generate_with_history_retry(

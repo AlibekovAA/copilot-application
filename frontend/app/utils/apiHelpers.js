@@ -1,3 +1,5 @@
+import { formatErrorDetail } from './errorHelpers';
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 export const AUTH_API_URL =
@@ -15,6 +17,14 @@ export function getAuthHeaders() {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
   };
+}
+
+export async function handleApiError(response, fallbackMessage) {
+  const errorData = await response.json().catch(() => ({}));
+  const errorMessage =
+    formatErrorDetail(errorData.detail || errorData.error || errorData) ||
+    fallbackMessage;
+  return errorMessage;
 }
 
 export const TYPING_INTERVAL_MS = 12;

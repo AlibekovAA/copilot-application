@@ -1,8 +1,16 @@
 'use client';
+import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import styles from './markdown.module.css';
 
-export function Markdown({ children, className }) {
+const TypingCaret = () => (
+  <span className={styles.typingCaret} />
+);
+
+export function Markdown({ children, className, showTypingIndicator = false }) {
+  const content = useMemo(() => {
+    return typeof children === 'string' ? children : String(children || '');
+  }, [children]);
   return (
     <div className={`${styles.markdown} ${className || ''}`}>
       <ReactMarkdown
@@ -17,8 +25,8 @@ export function Markdown({ children, className }) {
           ul: ({ children }) => <ul className={styles.list}>{children}</ul>,
           ol: ({ children }) => <ol className={styles.orderedList}>{children}</ol>,
           li: ({ children }) => <li className={styles.listItem}>{children}</li>,
-          code: ({ children, className }) => {
-            const isInline = !className;
+          code: ({ children, className: codeClassName }) => {
+            const isInline = !codeClassName;
             return isInline ? (
               <code className={styles.inlineCode}>{children}</code>
             ) : (
@@ -35,8 +43,9 @@ export function Markdown({ children, className }) {
           ),
         }}
       >
-        {children}
+        {content}
       </ReactMarkdown>
+      {showTypingIndicator && <TypingCaret />}
     </div>
   );
 }

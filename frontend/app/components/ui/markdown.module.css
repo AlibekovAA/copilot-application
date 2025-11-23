@@ -1,6 +1,8 @@
 .markdown {
   line-height: 1.6;
   color: var(--app-text-primary);
+  display: inline-block;
+  width: 100%;
 }
 
 .paragraph {
@@ -129,4 +131,23 @@
 
 :global(.theme-light) .link:hover {
   text-decoration-color: var(--app-accent-color);
+}
+
+.typingCaret {
+  display: inline-block;
+  width: 0.35rem;
+  height: 1rem;
+  background: var(--app-accent-color);
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }

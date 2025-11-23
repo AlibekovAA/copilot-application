@@ -1,9 +1,6 @@
 package application
 
 import (
-	"backend/config"
-	"backend/database"
-	"backend/logger"
 	"context"
 	"errors"
 	"net/http"
@@ -14,15 +11,21 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+
+	"backend/config"
+	"backend/database"
+	"backend/logger"
+
 )
 
 type Application struct {
-	DB        *sqlx.DB
-	userRepo  *database.UserRepository
-	Router    *mux.Router
-	Addr      string
-	JWTSecret []byte
-	logger    *logger.Logger
+	DB          *sqlx.DB
+	userRepo    *database.UserRepository
+	Router      *mux.Router
+	Addr        string
+	JWTSecret   []byte
+	CORSOrigins []string
+	logger      *logger.Logger
 }
 
 func NewApplication() *Application {
@@ -44,6 +47,7 @@ func (app *Application) Configure(logger *logger.Logger, cfg *config.Config) err
 	app.userRepo = database.NewUserRepository(db, logger)
 	app.Addr = cfg.Addr
 	app.JWTSecret = []byte(cfg.JWTSecret)
+	app.CORSOrigins = cfg.CORSOrigins
 
 	if len(app.JWTSecret) == 0 {
 		return errors.New("JWT_SECRET must not be empty")
@@ -79,7 +83,7 @@ func (app *Application) RegisterHandlers() {
 func (app *Application) Run() {
 	app.RegisterHandlers()
 
-	handler := corsMiddleware(app.Router)
+	handler := app.corsMiddleware(app.Router)
 
 	server := &http.Server{
 		Addr:         app.Addr,
@@ -123,10 +127,10 @@ func (app *Application) Run() {
 	app.logger.Info("Backend terminated correctly")
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	allowedOrigins := map[string]bool{
-		"http://frontend_app:3000": true,
-		"http://localhost:3000":    true,
+func (app *Application) corsMiddleware(next http.Handler) http.Handler {
+	allowedOrigins := make(map[string]bool)
+	for _, origin := range app.CORSOrigins {
+		allowedOrigins[origin] = true
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,19 +1,21 @@
 package config
 
 import (
-	"backend/logger"
 	"os"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
+
+	"backend/logger"
 )
 
 type Config struct {
-	LogLevel  logger.LogLevel `env:"LOG_LEVEL" envDefault:"1"`
-	LogDir    string          `env:"LOG_DIR" envDefault:"./logs"`
-	Database  DatabaseConfig  `envPrefix:"DATABASE_"`
-	Addr      string          `env:"ADDR" envDefault:":8080"`
-	JWTSecret string          `env:"JWT_SECRET"`
+	LogLevel   logger.LogLevel `env:"LOG_LEVEL" envDefault:"1"`
+	LogDir     string          `env:"LOG_DIR" envDefault:"./logs"`
+	Database   DatabaseConfig  `envPrefix:"DATABASE_"`
+	Addr       string          `env:"ADDR" envDefault:":8080"`
+	JWTSecret  string          `env:"JWT_SECRET"`
+	CORSOrigins []string       `env:"CORS_ORIGINS" envSeparator:"," envDefault:"http://localhost:3000,http://frontend_app:3000"`
 }
 
 type DatabaseConfig struct {
