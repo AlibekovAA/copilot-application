@@ -1,5 +1,10 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import HTTPException, status
 from jose import JWTError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.logger import log
 
@@ -65,3 +70,17 @@ def raise_missing_user_id() -> HTTPException:
         detail="Invalid token: missing user_id",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+@asynccontextmanager
+async def api_operation(context: str, session: AsyncSession | None = None) -> AsyncGenerator[None]:
+    try:
+        yield
+    except HTTPException:
+        if session is not None:
+            await session.rollback()
+        raise
+    except (ValueError, SQLAlchemyError, RuntimeError, OSError) as error:
+        if session is not None:
+            await session.rollback()
+        raise handle_api_error(error, context) from error

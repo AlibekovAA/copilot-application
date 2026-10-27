@@ -27,7 +27,6 @@ export async function handleApiError(response, fallbackMessage) {
   return errorMessage;
 }
 
-export const TYPING_INTERVAL_MS = 12;
 export const JWT_TOKEN_MAX_AGE = 72 * 60 * 60;
 
 export const VALID_ROUTES = ['/', '/auth'];

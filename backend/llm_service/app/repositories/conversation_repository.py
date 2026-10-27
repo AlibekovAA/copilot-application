@@ -1,11 +1,12 @@
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import with_expression
 
 from app.models import Conversation, Message
 from app.repositories.base import BaseRepository
 
 
 class ConversationRepository(BaseRepository):
-    async def create_conversation(
+    def create_conversation(
         self,
         user_id: int,
         title: str = "Новый диалог",
@@ -25,45 +26,32 @@ class ConversationRepository(BaseRepository):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[Conversation], int]:
-        messages_count_subquery = (
+        total = await self.session.scalar(
+            select(func.count()).select_from(Conversation).where(Conversation.user_id == user_id)
+        )
+        page = (
+            select(Conversation.conversation_id)
+            .where(Conversation.user_id == user_id)
+            .order_by(Conversation.created_at.desc(), Conversation.conversation_id.desc())
+            .limit(limit)
+            .offset(offset)
+            .cte("conversation_page")
+        )
+        message_counts = (
             select(Message.conversation_id, func.count(Message.message_id).label("messages_count"))
+            .where(Message.conversation_id.in_(select(page.c.conversation_id)))
             .group_by(Message.conversation_id)
             .subquery()
         )
-
-        total_window = func.count(Conversation.conversation_id).over().label("total")
-
         stmt = (
-            select(
-                Conversation,
-                func.coalesce(messages_count_subquery.c.messages_count, 0).label("msg_count"),
-                total_window,
-            )
-            .outerjoin(
-                messages_count_subquery, Conversation.conversation_id == messages_count_subquery.c.conversation_id
-            )
-            .where(Conversation.user_id == user_id)
-            .order_by(Conversation.created_at.desc())
-            .limit(limit)
-            .offset(offset)
+            select(Conversation)
+            .join(page, Conversation.conversation_id == page.c.conversation_id)
+            .outerjoin(message_counts, Conversation.conversation_id == message_counts.c.conversation_id)
+            .options(with_expression(Conversation.messages_count, func.coalesce(message_counts.c.messages_count, 0)))
+            .order_by(Conversation.created_at.desc(), Conversation.conversation_id.desc())
         )
-
         result = await self.session.execute(stmt)
-        rows = result.all()
-
-        if not rows:
-            return [], 0
-
-        conversations = []
-        total = 0
-        for row in rows:
-            conversation = row[0]
-            conversation.messages_count = row[1]
-            if total == 0:
-                total = row[2] or 0
-            conversations.append(conversation)
-
-        return conversations, total
+        return list(result.scalars().all()), total or 0
 
     async def get_conversation_by_id(self, conversation_id: int, user_id: int) -> Conversation | None:
         stmt = select(Conversation).where(
@@ -74,8 +62,9 @@ class ConversationRepository(BaseRepository):
         return result.scalar_one_or_none()
 
     async def delete_conversation(self, conversation_id: int, user_id: int) -> bool:
-        conversation = await self.get_conversation_by_id(conversation_id, user_id)
-        if conversation is None:
-            return False
-        await self.session.delete(conversation)
-        return True
+        result = await self.session.execute(
+            delete(Conversation)
+            .where(Conversation.conversation_id == conversation_id, Conversation.user_id == user_id)
+            .returning(Conversation.conversation_id)
+        )
+        return result.scalar_one_or_none() is not None

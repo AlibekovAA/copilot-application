@@ -181,7 +181,3 @@ SYSTEM_PROMPTS = {
 
 def get_system_prompt(domain: str = "general") -> str:
     return SYSTEM_PROMPTS.get(domain.lower(), SYSTEM_PROMPTS["general"])
-
-
-def get_available_domains() -> list[str]:
-    return list(SYSTEM_PROMPTS.keys())

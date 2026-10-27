@@ -90,7 +90,7 @@ FastAPI микросервис для обработки текстовых за
 | app/api/endpoints/conversations.py          | Conversations CRUD endpoints        |
 | app/api/endpoints/health.py                 | GET /health endpoint                |
 | **app/schemas/**                            | **Pydantic схемы**                  |
-| app/schemas/chat.py                         | ChatRequest, ChatResponse           |
+| app/schemas/chat.py                         | ChatResponse                        |
 | app/schemas/conversation.py                 | Conversation schemas                |
 | **app/models/**                             | **SQLAlchemy ORM модели**           |
 | app/models/base.py                          | Base класс для всех моделей         |
@@ -175,3 +175,22 @@ make run
 # или
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+
+## Ограничения и обработка запросов
+
+`JWT_SECRET` обязателен и не может быть пустым. `MOCK_MISTRAL` читается через настройки.
+По умолчанию используются `LOG_LEVEL=1` (INFO) и `LOG_QUEUE_SIZE=1000`. Логи приложения,
+Uvicorn и SQLAlchemy направляются через общий логгер.
+
+Разрешено не более пяти файлов по 10 МБ в форматах PDF, DOCX, TXT и Markdown. Из каждого
+файла извлекается до 50 000 символов. PDF и DOCX обрабатываются вне event loop, размер
+распакованного DOCX ограничен 50 МБ.
+
+Транзакция чтения истории закрывается перед обработкой файлов и вызовом LLM. Ошибки
+внешнего API возвращаются как 502/504, ограничение частоты — как 429 с `Retry-After`.
+
+История сообщений поддерживает `limit` от 1 до 500 и `offset`. Без параметров сохраняется
+прежний полный JSON-ответ, формируемый потоком с чтением БД порциями по 100 сообщений.
+Неиспользуемые поля `file_name`, `content_type` и `enriched_prompt` удалены из ORM и
+`db/initdb.sql`; их вычисление и запись также удалены.

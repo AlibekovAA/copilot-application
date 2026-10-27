@@ -1,5 +1,5 @@
-import asyncio
 from dataclasses import dataclass
+from typing import ClassVar
 
 from fastapi import UploadFile
 
@@ -14,6 +14,9 @@ class ProcessedFile:
 
 
 class FileProcessingService:
+    MAX_FILES: ClassVar[int] = 5
+    MAX_TOTAL_TEXT_LENGTH: ClassVar[int] = 5 * (FileService.MAX_TEXT_LENGTH + len("\n\n[...text truncated...]"))
+
     @staticmethod
     async def process_file(file: UploadFile) -> ProcessedFile:
         is_valid, error_msg = FileService.validate_file(file)
@@ -34,17 +37,23 @@ class FileProcessingService:
         if not files:
             return []
 
+        if len(files) > FileProcessingService.MAX_FILES:
+            raise ValueError(f"At most {FileProcessingService.MAX_FILES} files are allowed")
         log.info(f"Processing {len(files)} files")
-
-        async def process_single_file(file: UploadFile) -> ProcessedFile:
+        processed_files = []
+        total_text_length = 0
+        for file in files:
             try:
-                return await FileProcessingService.process_file(file)
+                processed = await FileProcessingService.process_file(file)
+                total_text_length += len(processed.extracted_text)
+                if total_text_length > FileProcessingService.MAX_TOTAL_TEXT_LENGTH:
+                    raise ValueError("Combined extracted text exceeds the maximum length")
+                processed_files.append(processed)
             except (ValueError, OSError, RuntimeError) as e:
                 log.error(f"Error processing file {file.filename}: {e}")
                 raise ValueError(f"Ошибка обработки файла {file.filename}: {e!s}") from e
 
-        processed_files = await asyncio.gather(*[process_single_file(file) for file in files])
-        return list(processed_files)
+        return processed_files
 
     @staticmethod
     def format_files_for_prompt(processed_files: list[ProcessedFile]) -> str:

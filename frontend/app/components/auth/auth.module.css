@@ -57,8 +57,7 @@
   color: #9ca3af;
 }
 
-.backButton:hover,
-.backButtonSignup:hover {
+.backButton:hover{
   color: #9933ff;
 }
 
@@ -152,8 +151,7 @@
   align-self: center;
 }
 
-.buttonGradient:hover,
-.buttonGradientSignup:hover {
+.buttonGradient:hover{
   background: linear-gradient(to right, #8822ee, #de2013);
   transform: scale(1.05);
 }
@@ -231,48 +229,8 @@
   transition: color 0.2s;
 }
 
-.passwordToggle:hover,
-.passwordToggleSignup:hover {
+.passwordToggle:hover{
   color: #ef3124;
-}
-
-.checkbox {
-  appearance: none;
-  width: 1.125rem;
-  height: 1.125rem;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.25rem;
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  position: relative;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.checkbox:hover {
-  border-color: #9933ff;
-}
-
-.checkbox:checked {
-  background: linear-gradient(to right, #9933ff, #ef3124);
-  border-color: #9933ff;
-}
-
-.checkbox:checked::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%) rotate(45deg);
-  width: 4px;
-  height: 8px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-}
-
-.checkbox:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(153, 51, 255, 0.1);
 }
 
 .link {
@@ -287,8 +245,7 @@
   display: inline;
 }
 
-.link:hover,
-.linkSecondary:hover {
+.link:hover{
   color: #ef3124;
 }
 
@@ -313,12 +270,6 @@
   width: 1rem;
   height: 1rem;
   color: #10b981;
-}
-
-.checkboxLabel {
-  font-size: 0.875rem;
-  color: #d1d5db;
-  line-height: 1.5;
 }
 
 .footerText {
@@ -372,25 +323,12 @@
   margin: 0;
 }
 
-.flexStart {
-  display: flex;
-  align-items: start;
-}
-
-.spaceX2 {
-  gap: 0.5rem;
-}
-
 .textCenter {
   text-align: center;
 }
 
 .relative {
   position: relative;
-}
-
-.cursorPointer {
-  cursor: pointer;
 }
 
 .pt6 {

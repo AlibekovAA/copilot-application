@@ -32,3 +32,4 @@ frontend/.vercel
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
 .vscode/
+AGENTS.md

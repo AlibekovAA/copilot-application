@@ -27,7 +27,7 @@ export function ConversationView({ messages, typingState, onTypingComplete, isLo
       }, 100);
       return () => clearTimeout(timeoutId);
     }
-  }, [messages.length, animatedText, typingState.messageId]);
+  }, [messages.length, typingState.messageId]);
 
   useEffect(() => {
     if (!typingState.messageId || !typingState.fullText) {

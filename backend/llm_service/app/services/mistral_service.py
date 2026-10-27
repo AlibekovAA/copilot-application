@@ -1,5 +1,4 @@
 import asyncio
-import os
 from typing import Any
 
 import httpx
@@ -9,9 +8,6 @@ from app.core import get_settings
 from app.utils import log
 
 
-DEFAULT_ERROR_RESPONSE = "Sorry, unable to generate response."
-
-
 class MistralService:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -19,7 +15,7 @@ class MistralService:
         self.model = self.settings.MISTRAL_MODEL
         self.base_url = self.settings.MISTRAL_BASE_URL
         self.timeout = self.settings.MISTRAL_TIMEOUT
-        self.mock_mode = os.getenv("MOCK_MISTRAL", "false").lower() == "true"
+        self.mock_mode = self.settings.MOCK_MISTRAL
 
         if self.mock_mode:
             log.info("MistralService running in MOCK mode - LLM API calls will be simulated")
@@ -64,73 +60,90 @@ class MistralService:
             return mock_response
 
         try:
-            log.debug(
-                f"Generating with model: {self.model}, "
-                f"prompt: {len(prompt)} chars, history: {len(history_messages) if history_messages else 0}"
-            )
-
-            messages = [{"role": "system", "content": system_prompt}]
-
-            if history_messages:
-                messages.extend(history_messages)
-
-            current_question = f"[ТЕКУЩИЙ ВОПРОС - ОТВЕТЬ ТОЛЬКО НА НЕГО]\n{prompt}"
-            messages.append({"role": "user", "content": current_question})
-
-            payload = {
-                "model": self.model,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
+            return await self._request_completion(
+                prompt,
+                system_prompt,
+                history_messages,
+                temperature,
+                max_tokens,
                 **kwargs,
-            }
-
-            response = await self.client.post("/chat/completions", json=payload)
-            response.raise_for_status()
-
-            try:
-                data = response.json()
-            except ValueError as e:
-                log.error(f"Failed to parse Mistral API response as JSON: {e}; body={response.text}")
-                raise ValueError("Invalid JSON in response from Mistral AI") from e
-            choices = data.get("choices", [])
-
-            if not choices:
-                log.warning("Empty choices in Mistral API response")
-                return DEFAULT_ERROR_RESPONSE
-
-            generated_text: str = str(choices[0].get("message", {}).get("content", ""))
-
-            if not generated_text:
-                log.warning("Empty content in Mistral API response")
-                return DEFAULT_ERROR_RESPONSE
-
-            log.debug(f"Generated: {len(generated_text)} chars")
-
-            return generated_text.strip()
+            )
 
         except httpx.TimeoutException as e:
             log.error(f"Mistral API timeout: {e}")
-            raise ValueError("Timeout waiting for response from Mistral AI") from e
+            raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Timeout waiting for Mistral AI") from e
         except httpx.HTTPStatusError as e:
             error_text = e.response.text
             status_code = e.response.status_code
             log.error(f"Mistral API error: {status_code} - {error_text}")
 
-            if status_code == status.HTTP_401_UNAUTHORIZED:
-                raise ValueError("Invalid API key Mistral AI") from e
             if status_code == status.HTTP_429_TOO_MANY_REQUESTS:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                     detail="Request limit exceeded for the configured Mistral model. Please retry later.",
+                    headers={"Retry-After": e.response.headers.get("Retry-After", "1")},
                 ) from e
-            if status_code == status.HTTP_400_BAD_REQUEST:
-                raise ValueError(f"Error in request to Mistral AI: {error_text}") from e
-
-            raise ValueError(f"Error when contacting Mistral AI: {status_code}") from e
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Mistral AI request failed") from e
+        except httpx.RequestError as e:
+            log.error(f"Mistral connection failed: {e}")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Unable to contact Mistral AI") from e
         except (RuntimeError, ConnectionError, OSError) as e:
             log.error(f"Unexpected error in Mistral service: {e}")
-            raise ValueError(f"Unexpected error in Mistral service: {e!s}") from e
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Mistral AI request failed") from e
+
+    async def _request_completion(
+        self,
+        prompt: str,
+        system_prompt: str,
+        history_messages: list[dict[str, str]] | None,
+        temperature: float,
+        max_tokens: int,
+        **kwargs: Any,
+    ) -> str:
+        log.debug(
+            f"Generating with model: {self.model}, "
+            f"prompt: {len(prompt)} chars, history: {len(history_messages) if history_messages else 0}"
+        )
+
+        messages = [{"role": "system", "content": system_prompt}]
+
+        if history_messages:
+            messages.extend(history_messages)
+
+        current_question = f"[ТЕКУЩИЙ ВОПРОС - ОТВЕТЬ ТОЛЬКО НА НЕГО]\n{prompt}"
+        messages.append({"role": "user", "content": current_question})
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            **kwargs,
+        }
+
+        response = await self.client.post("/chat/completions", json=payload)
+        response.raise_for_status()
+
+        try:
+            data = response.json()
+        except ValueError as e:
+            log.error(f"Failed to parse Mistral API response as JSON: {e}; body={response.text}")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Invalid JSON from Mistral AI") from e
+        choices = data.get("choices", [])
+
+        if not choices:
+            log.warning("Empty choices in Mistral API response")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Empty response from Mistral AI")
+
+        generated_text: str = str(choices[0].get("message", {}).get("content", ""))
+
+        if not generated_text:
+            log.warning("Empty content in Mistral API response")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Empty response from Mistral AI")
+
+        log.debug(f"Generated: {len(generated_text)} chars")
+
+        return generated_text.strip()
 
     async def close(self, timeout: float = 10.0) -> None:
         if self.mock_mode:

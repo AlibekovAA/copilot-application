@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -53,8 +54,7 @@ func getClientIP(r *http.Request) string {
 func (app *Application) healthHandler(w http.ResponseWriter, r *http.Request) {
 	clientIP := getClientIP(r)
 	app.logger.Debugf("Health check: IP=%s", clientIP)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	app.respondWithJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
@@ -71,7 +71,7 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	app.logger.Infof("Registration attempt: email=%s, name=%s, IP=%s", req.Email, req.Name, clientIP)
+	app.logger.Debugf("Registration attempt: email=%s, name=%s, IP=%s", req.Email, req.Name, clientIP)
 
 	if req.Email == "" || req.Password == "" || req.Name == "" {
 		app.logger.Infof("Registration failed: missing required fields for email=%s, IP=%s", req.Email, clientIP)
@@ -106,6 +106,11 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 		app.respondWithError(w, http.StatusConflict, "email already exists")
 		return
 	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		app.logger.Errorf("Registration lookup failed for email=%s: %v", req.Email, err)
+		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
+		return
+	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -121,6 +126,11 @@ func (app *Application) registerHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	createdUser, err := app.userRepo.Create(ctx, user)
 
+	if errors.Is(err, database.ErrEmailExists) {
+		app.logger.Infof("Registration conflict: email=%s, IP=%s", req.Email, clientIP)
+		app.respondWithError(w, http.StatusConflict, "email already exists")
+		return
+	}
 	if err != nil {
 		app.logger.Errorf("Registration DB error: %v", err)
 		app.respondWithError(w, http.StatusInternalServerError, "registration failed")
@@ -158,7 +168,7 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.logger.Infof("Login attempt: email=%s, IP=%s", req.Email, clientIP)
+	app.logger.Debugf("Login attempt: email=%s, IP=%s", req.Email, clientIP)
 
 	if req.Email == "" || req.Password == "" {
 		app.logger.Infof("Login failed: missing required fields for email=%s, IP=%s", req.Email, clientIP)
@@ -171,6 +181,11 @@ func (app *Application) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := app.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			app.logger.Errorf("Login lookup failed: %v", err)
+			app.respondWithError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
 		app.logger.Infof("Login failed: user not found email=%s, IP=%s", req.Email, clientIP)
 		app.respondWithError(w, http.StatusUnauthorized, "invalid credentials")
 		return
@@ -212,7 +227,7 @@ func (app *Application) profileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app.logger.Infof("Profile request: user_id=%d, email=%s, IP=%s", userID, email, clientIP)
+	app.logger.Debugf("Profile request: user_id=%d, email=%s, IP=%s", userID, email, clientIP)
 
 	app.respondWithJSON(w, http.StatusOK, map[string]any{
 		"user_id": userID,
@@ -262,6 +277,10 @@ func (app *Application) changePasswordHandler(w http.ResponseWriter, r *http.Req
 	user, err := app.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		app.logger.Errorf("User fetch error: %v", err)
+		if !errors.Is(err, sql.ErrNoRows) {
+			app.respondWithError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
 		app.respondWithError(w, http.StatusUnauthorized, "user not found")
 		return
 	}

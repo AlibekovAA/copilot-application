@@ -3,6 +3,7 @@ from typing import Annotated, cast
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.forms import ChatForm, get_chat_form
 from app.core import get_db
 from app.repositories import ConversationRepository, MessageRepository
 from app.services import ConversationService, MistralService
@@ -34,3 +35,4 @@ ConversationRepoDep = Annotated[ConversationRepository, Depends(get_conversation
 MessageRepoDep = Annotated[MessageRepository, Depends(get_message_repo)]
 ConversationServiceDep = Annotated[ConversationService, Depends(get_conversation_service)]
 MistralServiceDep = Annotated[MistralService, Depends(get_mistral_service)]
+ChatFormDep = Annotated[ChatForm, Depends(get_chat_form)]

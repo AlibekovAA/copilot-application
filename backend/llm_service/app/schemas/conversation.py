@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ConversationCreate(BaseModel):
@@ -12,15 +12,14 @@ class ConversationCreate(BaseModel):
 
 
 class ConversationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     conversation_id: int
     title: str
     business_context: str | None
     created_at: datetime
     user_id: int
     messages_count: int = Field(default=0, description="Количество сообщений в диалоге")
-
-    class Config:
-        from_attributes = True
 
 
 class ConversationListResponse(BaseModel):

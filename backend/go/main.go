@@ -26,5 +26,7 @@ func main() {
 		logger.Fatalf("Failed to configure application: %v", err)
 	}
 
-	app.Run()
+	if err := app.Run(); err != nil {
+		logger.Fatalf("Backend stopped with error: %v", err)
+	}
 }

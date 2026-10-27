@@ -1,6 +1,8 @@
+from dataclasses import dataclass
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class BaseRepository:  # noqa: B903
-    def __init__(self, session: AsyncSession) -> None:
-        self.session = session
+@dataclass(slots=True)
+class BaseRepository:
+    session: AsyncSession

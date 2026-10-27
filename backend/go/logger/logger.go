@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -76,56 +77,42 @@ func (l *Logger) Initialize(logDir string, level LogLevel) error {
 	return nil
 }
 
-func (l *Logger) SetLevel(level LogLevel) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.level = level
-}
-
-func (l *Logger) log(level LogLevel, msg string) {
+func (l *Logger) log(level LogLevel, format string, args ...any) {
 	l.mu.RLock()
-	currentLevel := l.level
-	l.mu.RUnlock()
+	defer l.mu.RUnlock()
 
-	if level < currentLevel {
+	if level < l.level {
 		return
 	}
 
-	l.out.Output(3, fmt.Sprintf("[%s] %s", levelNames[level], msg))
+	l.out.Output(3, fmt.Sprintf("[%s] %s", levelNames[level], fmt.Sprintf(format, args...)))
 }
 
-func (l *Logger) Debug(msg string)    { l.log(DEBUG, msg) }
-func (l *Logger) Info(msg string)     { l.log(INFO, msg) }
-func (l *Logger) Warn(msg string)     { l.log(WARNING, msg) }
-func (l *Logger) Error(msg string)    { l.log(ERROR, msg) }
-func (l *Logger) Critical(msg string) { l.log(CRITICAL, msg) }
+func (l *Logger) Info(msg string)  { l.log(INFO, "%s", msg) }
+func (l *Logger) Error(msg string) { l.log(ERROR, "%s", msg) }
 
 func (l *Logger) Debugf(format string, args ...any) {
-	l.log(DEBUG, fmt.Sprintf(format, args...))
+	l.log(DEBUG, format, args...)
 }
 
 func (l *Logger) Infof(format string, args ...any) {
-	l.log(INFO, fmt.Sprintf(format, args...))
+	l.log(INFO, format, args...)
 }
 
 func (l *Logger) Warnf(format string, args ...any) {
-	l.log(WARNING, fmt.Sprintf(format, args...))
+	l.log(WARNING, format, args...)
 }
 
 func (l *Logger) Errorf(format string, args ...any) {
-	l.log(ERROR, fmt.Sprintf(format, args...))
-}
-
-func (l *Logger) Criticalf(format string, args ...any) {
-	l.log(CRITICAL, fmt.Sprintf(format, args...))
-}
-
-func (l *Logger) Fatal(msg string) {
-	l.log(CRITICAL, msg)
-	os.Exit(1)
+	l.log(ERROR, format, args...)
 }
 
 func (l *Logger) Fatalf(format string, args ...any) {
-	l.log(CRITICAL, fmt.Sprintf(format, args...))
+	l.log(CRITICAL, format, args...)
 	os.Exit(1)
+}
+
+func (l *Logger) Write(message []byte) (int, error) {
+	l.Error(strings.TrimSpace(string(message)))
+	return len(message), nil
 }

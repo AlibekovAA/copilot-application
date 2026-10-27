@@ -4,10 +4,10 @@ install:
 	poetry install
 
 format:
-	poetry run ruff format app/
+	poetry run ruff format app/ perf/load_test.py
 
 lint:
-	poetry run ruff check app/ --fix
+	poetry run ruff check app/ perf/load_test.py
 
 type-check:
 	poetry run mypy app/

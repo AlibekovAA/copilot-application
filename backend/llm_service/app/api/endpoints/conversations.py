@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import SQLAlchemyError
+import json
+from collections.abc import AsyncGenerator
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import ConversationRepoDep, ConversationServiceDep, MessageRepoDep
 from app.core import get_db
+from app.core.database import AsyncSessionLocal
 from app.middleware import get_current_user_id
+from app.repositories import MessageRepository
 from app.schemas import ConversationCreate, ConversationListResponse, ConversationResponse
-from app.utils import handle_api_error, log
+from app.utils import api_operation, log
 
 
 router = APIRouter()
@@ -23,8 +28,8 @@ async def create_conversation(
 ) -> ConversationResponse:
     log.debug(f"Creating conversation for user {user_id}")
 
-    try:
-        conversation = await conversation_repo.create_conversation(
+    async with api_operation("create conversation", db):
+        conversation = conversation_repo.create_conversation(
             user_id=user_id,
             title=request_body.title,
             business_context=request_body.business_context,
@@ -44,9 +49,6 @@ async def create_conversation(
             messages_count=0,
         )
 
-    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError) as e:
-        raise handle_api_error(e, "create conversation") from e
-
 
 @router.get("/conversations", response_model=ConversationListResponse, status_code=status.HTTP_200_OK)
 async def get_conversations(
@@ -65,7 +67,7 @@ async def get_conversations(
             "offset must be >= 0.",
         )
 
-    try:
+    async with api_operation("fetch conversations", db):
         conversations, total = await conversation_repo.get_conversations_by_user(
             user_id=user_id,
             limit=limit,
@@ -81,7 +83,7 @@ async def get_conversations(
                 business_context=conv.business_context,
                 created_at=conv.created_at,
                 user_id=conv.user_id,
-                messages_count=getattr(conv, "messages_count", 0),
+                messages_count=conv.messages_count,
             )
             for conv in conversations
         ]
@@ -91,9 +93,6 @@ async def get_conversations(
             total=total,
         )
 
-    except (HTTPException, ValueError, SQLAlchemyError, RuntimeError) as e:
-        raise handle_api_error(e, "fetch conversations") from e
-
 
 @router.get("/conversations/{conversation_id}/messages", status_code=status.HTTP_200_OK)
 async def get_conversation_messages(
@@ -102,25 +101,36 @@ async def get_conversation_messages(
     message_repo: MessageRepoDep,
     db: AsyncSession = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
-) -> dict:
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+) -> Response:
     log.debug(f"Fetching messages for conversation {conversation_id}, user {user_id}")
 
-    try:
+    async with api_operation("fetch conversation messages", db):
         await conversation_service.validate_conversation_access(conversation_id, user_id)
 
-        messages = await message_repo.get_all_messages(conversation_id)
+        if limit is not None:
+            messages = await message_repo.get_messages(conversation_id, limit, offset)
+            return JSONResponse({"conversation_id": conversation_id, "messages": messages})
+        if offset:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "offset requires limit")
+        await db.rollback()
+        return StreamingResponse(_stream_messages(conversation_id), media_type="application/json")
 
-        log.info(f"Found {len(messages)} messages for conversation {conversation_id}")
 
-        return {
-            "conversation_id": conversation_id,
-            "messages": messages,
-        }
-
-    except HTTPException:
+async def _stream_messages(conversation_id: int) -> AsyncGenerator[str]:
+    yield f'{{"conversation_id":{conversation_id},"messages":['
+    try:
+        async with AsyncSessionLocal() as session:
+            repository = MessageRepository(session)
+            separator = ""
+            async for message in repository.iter_messages(conversation_id):
+                yield separator + json.dumps(message, ensure_ascii=False)
+                separator = ","
+    except (RuntimeError, OSError) as error:
+        log.error(f"Failed to stream messages for conversation {conversation_id}: {error}", exc_info=True)
         raise
-    except (ValueError, SQLAlchemyError, RuntimeError) as e:
-        raise handle_api_error(e, "fetch conversation messages") from e
+    yield "]}"
 
 
 @router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -132,7 +142,7 @@ async def delete_conversation(
 ) -> None:
     log.debug(f"Deleting conversation {conversation_id} for user {user_id}")
 
-    try:
+    async with api_operation("delete conversation", db):
         deleted = await conversation_repo.delete_conversation(conversation_id, user_id)
 
         if not deleted:
@@ -144,9 +154,3 @@ async def delete_conversation(
 
         await db.commit()
         log.info(f"Deleted conversation {conversation_id}")
-
-    except HTTPException:
-        raise
-    except (ValueError, SQLAlchemyError, RuntimeError) as e:
-        await db.rollback()
-        raise handle_api_error(e, "delete conversation") from e

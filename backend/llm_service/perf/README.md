@@ -9,7 +9,7 @@
 Используйте Makefile из корня llm_service:
 
 ```bash
-cd ../..
+cd ..
 make install
 ```
 
@@ -18,7 +18,7 @@ make install
 Альтернативно, можно установить только необходимую библиотеку:
 
 ```bash
-pip install aiohttp>=3.13.2
+poetry install --with dev
 ```
 
 ## Запуск LLM сервиса с мок-режимом

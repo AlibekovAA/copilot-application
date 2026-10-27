@@ -1,9 +1,9 @@
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.database import engine
@@ -12,68 +12,26 @@ from app.utils import log
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     log.info("Application startup")
-
     settings = get_settings()
-    mistral_service = MistralService()
-    app.state.mistral_service = mistral_service
-    log.info("Mistral service initialized")
-
+    mistral_service: MistralService | None = None
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(lambda _: None)
-        log.info("Database connection established successfully")
-    except (SQLAlchemyError, ConnectionError, OSError) as e:
-        log.error(f"Failed to connect to database: {e}")
-        raise
-
-    yield
-
-    log.info("Application shutdown - starting graceful shutdown")
-    shutdown_timeout = settings.SHUTDOWN_TIMEOUT
-
-    async def close_mistral() -> None:
+        mistral_service = MistralService()
+        app.state.mistral_service = mistral_service
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        log.info("Mistral service and database connection initialized")
+        yield
+    finally:
+        log.info("Application shutdown - releasing resources")
         try:
-            await mistral_service.close(timeout=shutdown_timeout / 2)
-            log.info("Mistral service closed")
-        except (TimeoutError, RuntimeError, ValueError) as e:
-            log.warning(f"Error closing Mistral service: {e}")
-
-    async def close_database() -> None:
-        try:
-            await asyncio.wait_for(engine.dispose(), timeout=shutdown_timeout / 2)
-            log.info("Database connections closed")
-        except TimeoutError:
-            log.warning("Database close timeout exceeded")
-        except (RuntimeError, ValueError) as e:
-            log.warning(f"Error closing database: {e}")
-
-    shutdown_tasks = [
-        asyncio.create_task(close_mistral()),
-        asyncio.create_task(close_database()),
-    ]
-
-    try:
-        await asyncio.wait_for(
-            asyncio.gather(*shutdown_tasks, return_exceptions=True),
-            timeout=shutdown_timeout,
-        )
-    except TimeoutError:
-        log.warning(f"Shutdown timeout ({shutdown_timeout}s) exceeded, cancelling tasks")
-        for task in shutdown_tasks:
-            if not task.done():
-                task.cancel()
-        try:
-            await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-        except (RuntimeError, asyncio.CancelledError):
-            pass
-
-    try:
-        if hasattr(log, "_queue_listener"):
-            log._queue_listener.stop()
-            log.info("Logger closed")
-    except (RuntimeError, AttributeError) as e:
-        log.warning(f"Error closing logger: {e}")
-
-    log.info("Application shutdown complete")
+            if mistral_service is not None:
+                await mistral_service.close(timeout=settings.SHUTDOWN_TIMEOUT / 2)
+        finally:
+            try:
+                await asyncio.wait_for(engine.dispose(), timeout=settings.SHUTDOWN_TIMEOUT / 2)
+            except (TimeoutError, RuntimeError, OSError) as error:
+                log.error(f"Database shutdown failed: {error}", exc_info=True)
+                raise
+        log.info("Application shutdown complete")

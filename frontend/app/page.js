@@ -542,11 +542,6 @@ export default function Home() {
       sessions.map((session) => ({
         id: session.id,
         title: session.title,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-        messagesCount: session.messages.length,
-        lastMessagePreview:
-          session.messages[session.messages.length - 1]?.content,
       })),
     [sessions],
   );

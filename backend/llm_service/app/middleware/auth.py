@@ -36,19 +36,15 @@ def get_current_user_id(request: Request) -> int:
             algorithms=["HS256"],
         )
 
-        user_id = payload.get("user_id")
-
-        if user_id is None:
-            raise_missing_user_id()
-
-        if isinstance(user_id, str):
-            return int(user_id)
-        elif isinstance(user_id, (int, float)):
-            return int(user_id)
-        else:
-            raise ValueError(f"Invalid user_id type: {type(user_id)}")
-
     except JWTError as e:
         raise handle_jwt_error(e) from e
-    except (ValueError, TypeError) as e:
-        raise handle_user_id_error(e) from e
+
+    user_id = payload.get("user_id")
+    if user_id is None:
+        raise_missing_user_id()
+    if not isinstance(user_id, (str, int, float)):
+        raise handle_user_id_error(ValueError(f"Invalid user_id type: {type(user_id)}"))
+    try:
+        return int(user_id)
+    except (ValueError, TypeError, OverflowError) as error:
+        raise handle_user_id_error(error) from error

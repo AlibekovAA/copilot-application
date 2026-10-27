@@ -10,12 +10,14 @@ import (
 )
 
 type Config struct {
-	LogLevel   logger.LogLevel `env:"LOG_LEVEL" envDefault:"1"`
-	LogDir     string          `env:"LOG_DIR" envDefault:"./logs"`
-	Database   DatabaseConfig  `envPrefix:"DATABASE_"`
-	Addr       string          `env:"ADDR" envDefault:":8080"`
-	JWTSecret  string          `env:"JWT_SECRET"`
-	CORSOrigins []string       `env:"CORS_ORIGINS" envSeparator:"," envDefault:"http://localhost:3000,http://frontend_app:3000"`
+	LogLevel          logger.LogLevel `env:"LOG_LEVEL" envDefault:"1"`
+	LogDir            string          `env:"LOG_DIR" envDefault:"./logs"`
+	Database          DatabaseConfig  `envPrefix:"DATABASE_"`
+	Addr              string          `env:"ADDR" envDefault:":8080"`
+	JWTSecret         string          `env:"JWT_SECRET"`
+	AuthMaxConcurrent int             `env:"AUTH_MAX_CONCURRENT" envDefault:"32"`
+	AuthMaxQueued     int             `env:"AUTH_MAX_QUEUED" envDefault:"512"`
+	CORSOrigins       []string        `env:"CORS_ORIGINS" envSeparator:"," envDefault:"http://localhost:3000,http://frontend_app:3000"`
 }
 
 type DatabaseConfig struct {
